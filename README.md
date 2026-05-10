@@ -5,7 +5,8 @@
 > 核心目的：减少 LLM 全量读取大 JSON 的 token 浪费。先 `shape`/`fields`/`query` 定位，再 `get`/`set`/`add`/`del`/`append` 局部操作。
 >
 > 支持 JSON + JSONL 的结构理解、字段简表、局部查询和局部修改。
-
+>
+> 支持 JSON + JSONL 的bug查找和局部修改。
 ---
 
 ## JSON 为什么值得专门做一个工具

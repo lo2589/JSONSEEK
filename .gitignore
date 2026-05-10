@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Project plan & dev docs (not for repo)
+jsonseek_function_plan.md
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+.kimi/
+
+# Backup & temp
+*.bak
+*.tmp
+v.txt

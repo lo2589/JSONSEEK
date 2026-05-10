@@ -1,0 +1,115 @@
+import argparse
+import sys
+from typing import Any, List, Optional
+
+from . import commands
+from .detect import detect_file_kind
+from .errors import JsonseekError
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="jsonseek", description="Query and patch JSON/JSONL files from the command line.")
+    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
+
+    sub = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Common arguments helper
+    def add_common(p: argparse.ArgumentParser) -> None:
+        p.add_argument("file", help="Target JSON or JSONL file")
+        p.add_argument("--kind", choices=["json", "jsonl"], default=None, help="Force file kind (auto-detect by default)")
+        p.add_argument("--output", choices=["pretty", "json"], default="pretty", help="Output format")
+        p.add_argument("--backup", action="store_true", default=False, help="Create .bak backup before writing")
+
+    # shape
+    shape_p = sub.add_parser("shape", help="Show structure/shape of the file")
+    add_common(shape_p)
+    shape_p.add_argument("--max-depth", type=int, default=None, help="Maximum depth to traverse")
+    shape_p.add_argument("--array-mode", choices=["sample", "full"], default="sample", help="Array traversal mode")
+    shape_p.add_argument("--sample-size", type=int, default=100, help="Number of records to sample for JSONL")
+
+    # fields
+    fields_p = sub.add_parser("fields", help="List fields and their types")
+    add_common(fields_p)
+    fields_p.add_argument("keyword", nargs="?", default=None, help="Filter fields by keyword")
+    fields_p.add_argument("--top", action="store_true", default=False, help="Show only top-level fields")
+
+    # ls
+    ls_p = sub.add_parser("ls", help="List children at a path")
+    add_common(ls_p)
+    ls_p.add_argument("path", nargs="?", default="", help="Path to list (default: root)")
+
+    # get
+    get_p = sub.add_parser("get", help="Get value at a path")
+    add_common(get_p)
+    get_p.add_argument("path", help="Path to retrieve")
+
+    # query
+    query_p = sub.add_parser("query", help="Search for keys or values")
+    add_common(query_p)
+    query_p.add_argument("term", help="Search term")
+    query_p.add_argument("--case-sensitive", action="store_true", default=False, help="Case-sensitive matching")
+    query_p.add_argument("--exact", action="store_true", default=False, help="Exact match only")
+    query_p.add_argument("--match-mode", choices=["key", "value", "both"], default="both", help="What to match against")
+    query_p.add_argument("--max-results", type=int, default=None, help="Limit number of results")
+    query_p.add_argument("--record-id-field", default=None, help="Field to use as record ID in JSONL output")
+    query_p.add_argument("--preview-field", default=None, help="Field to preview in JSONL output")
+
+    # add
+    add_p = sub.add_parser("add", help="Add a key/value to an object")
+    add_common(add_p)
+    add_p.add_argument("path", help="Target path")
+    add_p.add_argument("value", help="Value to add (JSON string or literal)")
+    add_p.add_argument("--create-missing", action="store_true", default=False, help="Create missing intermediate keys")
+
+    # del
+    del_p = sub.add_parser("del", help="Delete a key or array element")
+    add_common(del_p)
+    del_p.add_argument("path", help="Target path to delete")
+
+    # set
+    set_p = sub.add_parser("set", help="Set a value at a path")
+    add_common(set_p)
+    set_p.add_argument("path", help="Target path")
+    set_p.add_argument("value", help="Value to set (JSON string or literal)")
+    set_p.add_argument("--create-missing", action="store_true", default=False, help="Create missing intermediate keys")
+
+    # append
+    append_p = sub.add_parser("append", help="Append a value to an array or JSONL file")
+    add_common(append_p)
+    append_p.add_argument("path", help="Target array path (JSON) or value (JSONL)")
+    append_p.add_argument("value", nargs="?", default=None, help="Value to append (JSON only)")
+
+    return parser
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if not args.command:
+        parser.print_help()
+        return 1
+    return dispatch_command(args)
+
+
+def dispatch_command(args: argparse.Namespace) -> int:
+    command = args.command
+    handlers = {
+        "shape": commands.shape_cmd.handle_shape,
+        "fields": commands.fields_cmd.handle_fields,
+        "ls": commands.ls_cmd.handle_ls,
+        "get": commands.get_cmd.handle_get,
+        "query": commands.query_cmd.handle_query,
+        "add": commands.add_cmd.handle_add,
+        "del": commands.del_cmd.handle_del,
+        "set": commands.set_cmd.handle_set,
+        "append": commands.append_cmd.handle_append,
+    }
+    handler = handlers.get(command)
+    if handler is None:
+        print(f"Unknown command: {command}", file=sys.stderr)
+        return 1
+    return handler(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

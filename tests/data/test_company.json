@@ -1,0 +1,25 @@
+{
+  "employees": [
+    {
+      "id": 1,
+      "name": "张无忌",
+      "skills": ["Python", "Java", "Go"],
+      "manager": null
+    },
+    {
+      "id": 2,
+      "name": "赵敏",
+      "skills": ["JavaScript", "React", "Node.js"],
+      "manager": 1
+    },
+    {
+      "id": 3,
+      "name": "周芷若",
+      "skills": ["Python", "TensorFlow", "PyTorch"],
+      "manager": 1
+    }
+  ],
+  "company": "明教科技有限公司",
+  "founded_year": 2020,
+  "offices": ["北京", "上海", "深圳"]
+}

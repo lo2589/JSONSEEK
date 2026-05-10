@@ -1,0 +1,3 @@
+{"id": 1, "name": "产品A", "price": 199.50, "in_stock": true}
+{"id": 2, "name": "产品B", "price": 299.00, "in_stock": false}
+{"id": 3, "name": "产品C", "price": 99.99, "in_stock": true}

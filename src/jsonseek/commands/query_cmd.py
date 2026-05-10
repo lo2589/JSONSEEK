@@ -20,9 +20,10 @@ def handle_query(args: argparse.Namespace) -> int:
         record_id_field = getattr(args, "record_id_field", None)
         preview_field = getattr(args, "preview_field", None)
 
+        enc = getattr(args, "encoding", None)
         if kind == "jsonl":
             hits = []
-            for record in iter_jsonl_records(args.file):
+            for record in iter_jsonl_records(args.file, encoding=enc):
                 rec_hits = scan_query_hits_in_record(
                     record,
                     term,
@@ -34,7 +35,7 @@ def handle_query(args: argparse.Namespace) -> int:
                 )
                 hits.extend(rec_hits)
         else:
-            data = load_json_file(args.file)
+            data = load_json_file(args.file, encoding=enc)
             hits = scan_query_hits_in_tree(
                 data,
                 term,

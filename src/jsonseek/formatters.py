@@ -123,6 +123,29 @@ def format_query_result(hits: List[QueryHit], output: str = "pretty") -> str:
     return "\n".join(lines)
 
 
+def format_extract_result(results: List[Any], output: str = "pretty") -> str:
+    if output == "json":
+        return json.dumps(results, ensure_ascii=False, indent=2, default=str)
+    lines: List[str] = []
+    for r in results:
+        if not r.get("ok"):
+            lines.append(f"{r['file']:<40} [missing] {r.get('error', '')}")
+            continue
+        value = r["value"]
+        if isinstance(value, (dict, list)):
+            preview = json.dumps(value, ensure_ascii=False, default=str)
+            if len(preview) > 60:
+                preview = preview[:57] + "..."
+        elif value is None:
+            preview = "null"
+        elif isinstance(value, bool):
+            preview = "true" if value else "false"
+        else:
+            preview = str(value)
+        lines.append(f"{r['file']:<40} {preview}")
+    return "\n".join(lines)
+
+
 def format_patch_result(message: str, output: str = "pretty") -> str:
     if output == "json":
         return json.dumps({"ok": True, "message": message}, ensure_ascii=False)

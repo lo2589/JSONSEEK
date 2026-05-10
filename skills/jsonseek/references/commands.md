@@ -140,3 +140,40 @@ jsonseek append data.jsonl '{"name":"new"}'
 ```
 
 **Note:** JSON append requires `path value`. JSONL append only needs `value`.
+
+---
+
+## extract — Batch Extract
+
+Extract the same path from multiple JSON files matching a glob pattern.
+
+```bash
+jsonseek extract "*.json" user.name
+jsonseek extract "data/*.json" metrics.cpu --output json
+jsonseek extract "*.json" meta.owner --include-missing
+```
+
+**Arguments:**
+- `pattern` — glob pattern to match files (e.g. `*.json`, `data/**/*.json`)
+- `path` — path to extract from each file
+
+**Options:**
+- `--output {pretty,json}` — output format
+- `--kind {json,jsonl}` — force file kind
+- `--include-missing` — include files where the path does not exist (default: skip them)
+
+**Output (pretty):**
+```
+a.json   alice
+b.json   bob
+c.json   [missing]
+```
+
+**Output (json):**
+```json
+[
+  {"file": "a.json", "value": "alice", "ok": true},
+  {"file": "b.json", "value": "bob", "ok": true},
+  {"file": "c.json", "value": null, "ok": false, "error": "Path not found"}
+]
+```

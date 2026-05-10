@@ -27,6 +27,7 @@ def rewrite_jsonl_file(
     path: str,
     transform_record: Optional[Callable[[JsonlRecord], Tuple[bool, Any]]],
     backup: bool = False,
+    encoding: Optional[str] = None,
 ) -> None:
     """Rewrite a JSONL file by transforming each record.
 
@@ -34,14 +35,18 @@ def rewrite_jsonl_file(
       - keep=True  -> write new_value
       - keep=False -> drop the record
     """
+    from .encoding import resolve_encoding
+    read_encoding = resolve_encoding(path, encoding)
+    write_encoding = encoding or "utf-8"
+
     if backup and os.path.exists(path):
         backup_path = path + ".bak"
         shutil.copy2(path, backup_path)
 
     temp_path = path + ".tmp"
     try:
-        with open(temp_path, "w", encoding="utf-8", newline="\n") as out_f:
-            for record in iter_jsonl_records(path):
+        with open(temp_path, "w", encoding=write_encoding, newline="\n") as out_f:
+            for record in iter_jsonl_records(path, encoding=read_encoding):
                 keep, new_value = transform_record(record)
                 if not keep:
                     continue

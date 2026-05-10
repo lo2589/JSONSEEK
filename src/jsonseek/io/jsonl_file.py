@@ -1,14 +1,16 @@
 import json
-from typing import Any, Iterator, List
+from typing import Any, Iterator, List, Optional
 
 from ..types import JsonlRecord
 from ..errors import JsonseekError
+from .encoding import resolve_encoding
 
 
-def iter_jsonl_records(path: str) -> Iterator[JsonlRecord]:
+def iter_jsonl_records(path: str, encoding: Optional[str] = None) -> Iterator[JsonlRecord]:
     """Iterate over JSONL records, yielding JsonlRecord objects."""
+    detected = resolve_encoding(path, encoding)
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding=detected) as f:
             line_number = 0
             record_index = 0
             for line in f:
@@ -28,29 +30,29 @@ def iter_jsonl_records(path: str) -> Iterator[JsonlRecord]:
         raise JsonseekError(f"Failed to read {path}: {e}")
 
 
-def load_jsonl_sample(path: str, limit: int = 100) -> List[JsonlRecord]:
+def load_jsonl_sample(path: str, limit: int = 100, encoding: Optional[str] = None) -> List[JsonlRecord]:
     """Load up to `limit` records from a JSONL file."""
     results: List[JsonlRecord] = []
-    for record in iter_jsonl_records(path):
+    for record in iter_jsonl_records(path, encoding=encoding):
         results.append(record)
         if len(results) >= limit:
             break
     return results
 
 
-def get_jsonl_record_by_index(path: str, record_index: int) -> JsonlRecord:
+def get_jsonl_record_by_index(path: str, record_index: int, encoding: Optional[str] = None) -> JsonlRecord:
     """Get a specific record by index from a JSONL file."""
-    for record in iter_jsonl_records(path):
+    for record in iter_jsonl_records(path, encoding=encoding):
         if record.record_index == record_index:
             return record
     raise JsonseekError(f"Record index {record_index} not found in {path}")
 
 
-def append_jsonl_record(path: str, value: Any) -> None:
+def append_jsonl_record(path: str, value: Any, encoding: str = "utf-8") -> None:
     """Append a single JSON record to a JSONL file."""
     try:
         line = json.dumps(value, ensure_ascii=False)
-        with open(path, "a", encoding="utf-8", newline="\n") as f:
+        with open(path, "a", encoding=encoding, newline="\n") as f:
             f.write(line)
             f.write("\n")
     except OSError as e:

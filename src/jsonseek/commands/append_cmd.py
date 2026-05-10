@@ -15,19 +15,20 @@ from ..errors import JsonseekError, PatchError
 def handle_append(args: argparse.Namespace) -> int:
     try:
         kind = detect_file_kind(args.file, kind_hint=getattr(args, "kind", None))
+        enc = getattr(args, "encoding", None)
         if kind == "jsonl":
             # JSONL append: args.path is the value when args.value is omitted
             raw_value = args.value if args.value is not None else args.path
             value = coerce_input_value(raw_value)
-            append_jsonl_record(args.file, value)
+            append_jsonl_record(args.file, value, encoding=enc or "utf-8")
             print(format_patch_result(f"Appended record to {args.file}", output=getattr(args, "output", "pretty")))
         else:
             if args.value is None:
                 raise PatchError("append for JSON requires both path and value arguments")
             value = coerce_input_value(args.value)
-            data = load_json_file(args.file)
+            data = load_json_file(args.file, encoding=enc)
             patched = patch_json_append(data, args.path, value)
-            save_json_file(args.file, patched, backup=getattr(args, "backup", False))
+            save_json_file(args.file, patched, backup=getattr(args, "backup", False), encoding=enc or "utf-8")
             print(format_patch_result(f"Appended to {args.path}", output=getattr(args, "output", "pretty")))
         return 0
     except (JsonseekError, PatchError) as e:

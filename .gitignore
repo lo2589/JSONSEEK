@@ -7,7 +7,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-
+test/
 # Project plan & dev docs (not for repo)
 jsonseek_function_plan.md
 
@@ -24,4 +24,5 @@ Thumbs.db
 # Backup & temp
 *.bak
 *.tmp
+tests/data/*.bak
 v.txt

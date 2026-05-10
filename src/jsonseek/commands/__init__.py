@@ -7,3 +7,5 @@ from . import add_cmd
 from . import del_cmd
 from . import set_cmd
 from . import append_cmd
+from . import extract_cmd
+from . import extend_cmd

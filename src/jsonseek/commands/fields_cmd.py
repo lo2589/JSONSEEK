@@ -18,16 +18,17 @@ def handle_fields(args: argparse.Namespace) -> int:
     try:
         kind = detect_file_kind(args.file, kind_hint=getattr(args, "kind", None))
         keyword = getattr(args, "keyword", None)
+        enc = getattr(args, "encoding", None)
         if kind == "jsonl":
             stats = {}
             total = 0
-            for record in iter_jsonl_records(args.file):
+            for record in iter_jsonl_records(args.file, encoding=enc):
                 total += 1
                 rec_stats = scan_fields_in_record(record)
                 merge_field_stats(stats, rec_stats)
             field_list = finalize_jsonl_field_stats(stats, total)
         else:
-            data = load_json_file(args.file)
+            data = load_json_file(args.file, encoding=enc)
             stats = scan_fields_in_tree(data)
             field_list = list(stats.values())
 

@@ -1,15 +1,20 @@
 import json
 import os
 import shutil
-from typing import Any
+from typing import Any, Optional
 
 from ..errors import JsonseekError
+from .encoding import resolve_encoding
 
 
-def load_json_file(path: str) -> Any:
-    """Load a JSON file and return the Python tree."""
+def load_json_file(path: str, encoding: Optional[str] = None) -> Any:
+    """Load a JSON file and return the Python tree.
+
+    If encoding is not specified, auto-detect from BOM or common encodings.
+    """
+    detected = resolve_encoding(path, encoding)
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding=detected) as f:
             return json.load(f)
     except FileNotFoundError:
         raise JsonseekError(f"File not found: {path}")
@@ -36,7 +41,7 @@ def _atomic_replace(src: str, dst: str) -> None:
             raise
 
 
-def save_json_file(path: str, data: Any, backup: bool = False) -> None:
+def save_json_file(path: str, data: Any, backup: bool = False, encoding: str = "utf-8") -> None:
     """Save data to a JSON file atomically, optionally creating a backup."""
     if backup and os.path.exists(path):
         backup_path = path + ".bak"
@@ -45,7 +50,7 @@ def save_json_file(path: str, data: Any, backup: bool = False) -> None:
     temp_path = path + ".tmp"
     try:
         content = dump_json_data(data, pretty=True)
-        with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
+        with open(temp_path, "w", encoding=encoding, newline="\n") as f:
             f.write(content)
             f.write("\n")
         _atomic_replace(temp_path, path)

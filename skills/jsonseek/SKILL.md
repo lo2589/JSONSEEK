@@ -88,6 +88,15 @@ jsonseek append file.jsonl '{"name":"new"}'    # append record
 | Mixed | `a[key1].b[0]` | `a -> key1 -> b -> index 0` |
 | Array index | `items[0][1]` | `items -> 0 -> 1` |
 
+### Batch extract
+
+Use `extract PATTERN PATH` to pull the same path from many files:
+
+```bash
+jsonseek extract "experiments/*/metrics.json" training.loss
+jsonseek extract "configs/*.json" api.endpoint --output json
+```
+
 JSONL paths start with a record selector: `[N].field` or `records[N].field`.
 
 ## Important Notes

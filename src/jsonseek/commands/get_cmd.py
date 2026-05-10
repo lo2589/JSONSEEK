@@ -1,5 +1,5 @@
 import argparse
-from typing import Any
+from typing import Any, Optional
 
 from ..detect import detect_file_kind
 from ..io.json_file import load_json_file
@@ -14,11 +14,12 @@ def handle_get(args: argparse.Namespace) -> int:
     try:
         kind = detect_file_kind(args.file, kind_hint=getattr(args, "kind", None))
         target_path = args.path
+        enc = getattr(args, "encoding", None)
         if kind == "jsonl":
             record_index, inner_tokens = resolve_record_and_inner_path(target_path)
-            value = get_jsonl_value(args.file, record_index, inner_tokens)
+            value = get_jsonl_value(args.file, record_index, inner_tokens, encoding=enc)
         else:
-            data = load_json_file(args.file)
+            data = load_json_file(args.file, encoding=enc)
             tokens = parse_path(target_path)
             value = resolve_value_at_path(data, tokens)
         print(format_get_result(value, output=getattr(args, "output", "pretty")))
@@ -34,8 +35,8 @@ def get_json_value(path: str, target_path: str) -> Any:
     return resolve_value_at_path(data, tokens)
 
 
-def get_jsonl_value(path: str, record_index: int, inner_path_tokens: list) -> Any:
-    record = get_jsonl_record_by_index(path, record_index)
+def get_jsonl_value(path: str, record_index: int, inner_path_tokens: list, encoding: Optional[str] = None) -> Any:
+    record = get_jsonl_record_by_index(path, record_index, encoding=encoding)
     if not inner_path_tokens:
         return record.data
     return resolve_value_at_path(record.data, inner_path_tokens)

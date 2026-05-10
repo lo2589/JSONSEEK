@@ -14,15 +14,16 @@ def handle_ls(args: argparse.Namespace) -> int:
     try:
         kind = detect_file_kind(args.file, kind_hint=getattr(args, "kind", None))
         target_path = getattr(args, "path", "") or ""
+        enc = getattr(args, "encoding", None)
         if kind == "jsonl":
             record_index, inner_tokens = resolve_record_and_inner_path(target_path)
-            record = get_jsonl_record_by_index(args.file, record_index)
+            record = get_jsonl_record_by_index(args.file, record_index, encoding=enc)
             if inner_tokens:
                 value = resolve_value_at_path(record.data, inner_tokens)
             else:
                 value = record.data
         else:
-            data = load_json_file(args.file)
+            data = load_json_file(args.file, encoding=enc)
             tokens = parse_path(target_path)
             if tokens:
                 value = resolve_value_at_path(data, tokens)

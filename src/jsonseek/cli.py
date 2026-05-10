@@ -19,6 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--kind", choices=["json", "jsonl"], default=None, help="Force file kind (auto-detect by default)")
         p.add_argument("--output", choices=["pretty", "json"], default="pretty", help="Output format")
         p.add_argument("--backup", action="store_true", default=False, help="Create .bak backup before writing")
+        p.add_argument("--encoding", default=None, help="File encoding (auto-detect by default)")
 
     # shape
     shape_p = sub.add_parser("shape", help="Show structure/shape of the file")
@@ -79,6 +80,20 @@ def build_parser() -> argparse.ArgumentParser:
     append_p.add_argument("path", help="Target array path (JSON) or value (JSONL)")
     append_p.add_argument("value", nargs="?", default=None, help="Value to append (JSON only)")
 
+    # extract
+    extract_p = sub.add_parser("extract", help="Extract a path from multiple JSON files")
+    extract_p.add_argument("pattern", help="Glob pattern to match files (e.g. '*.json' or 'data/*.json')")
+    extract_p.add_argument("path", help="Path to extract from each file")
+    extract_p.add_argument("--output", choices=["pretty", "json"], default="pretty", help="Output format")
+    extract_p.add_argument("--kind", choices=["json", "jsonl"], default=None, help="Force file kind")
+    extract_p.add_argument("--include-missing", action="store_true", default=False, help="Include files where path is missing")
+
+    # extend
+    extend_p = sub.add_parser("extend", help="Extend an array with multiple values (JSON only)")
+    add_common(extend_p)
+    extend_p.add_argument("path", help="Target array path")
+    extend_p.add_argument("value", help="JSON array string to extend with")
+
     return parser
 
 
@@ -103,6 +118,8 @@ def dispatch_command(args: argparse.Namespace) -> int:
         "del": commands.del_cmd.handle_del,
         "set": commands.set_cmd.handle_set,
         "append": commands.append_cmd.handle_append,
+        "extract": commands.extract_cmd.handle_extract,
+        "extend": commands.extend_cmd.handle_extend,
     }
     handler = handlers.get(command)
     if handler is None:

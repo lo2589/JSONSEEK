@@ -16,6 +16,7 @@ from ..types import KeyToken, IndexToken
 def handle_del(args: argparse.Namespace) -> int:
     try:
         kind = detect_file_kind(args.file, kind_hint=getattr(args, "kind", None))
+        enc = getattr(args, "encoding", None)
         if kind == "jsonl":
             # Determine if deleting whole record or inner field
             try:
@@ -30,6 +31,7 @@ def handle_del(args: argparse.Namespace) -> int:
                     args.file,
                     transform_record=lambda rec: (rec.record_index != record_index, rec.data),
                     backup=getattr(args, "backup", False),
+                    encoding=enc,
                 )
             else:
                 rewrite_jsonl_file(
@@ -38,11 +40,12 @@ def handle_del(args: argparse.Namespace) -> int:
                         rec, record_index, inner_tokens
                     ),
                     backup=getattr(args, "backup", False),
+                    encoding=enc,
                 )
         else:
-            data = load_json_file(args.file)
+            data = load_json_file(args.file, encoding=enc)
             patched = patch_json_del(data, args.path)
-            save_json_file(args.file, patched, backup=getattr(args, "backup", False))
+            save_json_file(args.file, patched, backup=getattr(args, "backup", False), encoding=enc or "utf-8")
         print(format_patch_result(f"Deleted {args.path}", output=getattr(args, "output", "pretty")))
         return 0
     except (JsonseekError, PatchError) as e:

@@ -15,15 +15,17 @@ def handle_shape(args: argparse.Namespace) -> int:
         kind = detect_file_kind(args.file, kind_hint=getattr(args, "kind", None))
         max_depth = getattr(args, "max_depth", None)
         array_mode = getattr(args, "array_mode", "sample")
+        enc = getattr(args, "encoding", None)
         if kind == "jsonl":
             shape = build_shape_tree_from_jsonl(
                 args.file,
                 sample_size=getattr(args, "sample_size", 100),
                 max_depth=max_depth,
                 array_mode=array_mode,
+                encoding=enc,
             )
         else:
-            data = load_json_file(args.file)
+            data = load_json_file(args.file, encoding=enc)
             shape = build_shape_tree(
                 data,
                 base_path="",
@@ -99,8 +101,9 @@ def build_shape_tree_from_jsonl(
     sample_size: int,
     max_depth: Optional[int],
     array_mode: str,
+    encoding: Optional[str] = None,
 ) -> ShapeNode:
-    records = load_jsonl_sample(path, limit=sample_size)
+    records = load_jsonl_sample(path, limit=sample_size, encoding=encoding)
     if not records:
         return ShapeNode(path="(root)", node_kind="array", children=[])
 

@@ -66,8 +66,14 @@ def coerce_input_value(raw: str) -> Any:
     """Coerce a command-line input string into a Python value.
 
     Tries JSON parsing first, then falls back to string.
+    Special markers for escaping:
+      <doublequote> -> "
     """
     raw = raw.strip()
+    
+    # Replace special markers
+    raw = raw.replace("<doublequote>", '"')
+    
     if raw == "null":
         return None
     if raw == "true":

@@ -16,7 +16,15 @@ from ..types import KeyToken, IndexToken
 
 def handle_add(args: argparse.Namespace) -> int:
     try:
-        value = coerce_input_value(args.value)
+        # Get value from file or command line
+        if args.from_file:
+            enc = args.encoding or resolve_encoding(args.file, None)
+            with open(args.from_file, 'r', encoding=enc) as f:
+                raw = f.read().strip()
+            value = coerce_input_value(raw)
+        else:
+            value = coerce_input_value(args.value)
+        
         kind = detect_file_kind(args.file, kind_hint=getattr(args, "kind", None))
         enc = getattr(args, "encoding", None)
         if kind == "jsonl":
@@ -71,3 +79,11 @@ def patch_jsonl_record_add(
     else:
         raise PatchError(f"Cannot add to array by index; use set or append")
     return True, data
+
+
+def add_value(path: str, target_path: str, value: Any, create_missing: bool = False, encoding: str = "utf-8") -> None:
+    """Add a value at a path in a JSON file. Python API version."""
+    from ..io.json_file import load_json_file, save_json_file
+    data = load_json_file(path, encoding=encoding)
+    patched = patch_json_add(data, target_path, value, create_missing=create_missing)
+    save_json_file(path, patched, backup=False, encoding=encoding)

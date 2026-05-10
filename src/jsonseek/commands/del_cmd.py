@@ -15,6 +15,16 @@ from ..types import KeyToken, IndexToken
 
 def handle_del(args: argparse.Namespace) -> int:
     try:
+        # Confirm before delete if not -y
+        if not getattr(args, "yes", False):
+            import sys
+            path = args.file
+            path_display = path
+            response = input(f"Delete '{args.path}' in {path_display}? [y/N]: ")
+            if response.lower() != 'y':
+                print("Cancelled")
+                return 1
+        
         kind = detect_file_kind(args.file, kind_hint=getattr(args, "kind", None))
         enc = getattr(args, "encoding", None)
         if kind == "jsonl":
@@ -88,3 +98,11 @@ def patch_jsonl_record_del(
             raise PatchError(f"Expected array parent, got {type(parent).__name__}")
         apply_del_from_array(parent, last_token.index)
     return True, data
+
+
+def del_value(path: str, target_path: str, encoding: str = "utf-8") -> None:
+    """Delete a value at a path in a JSON file. Python API version."""
+    from ..io.json_file import load_json_file, save_json_file
+    data = load_json_file(path, encoding=encoding)
+    patched = patch_json_del(data, target_path)
+    save_json_file(path, patched, backup=False, encoding=encoding)

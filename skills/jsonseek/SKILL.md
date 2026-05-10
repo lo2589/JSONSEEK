@@ -105,7 +105,67 @@ JSONL paths start with a record selector: `[N].field` or `records[N].field`.
 - Use `--backup` before write operations to create `.bak`.
 - `append` for JSON requires `path value` (array path + value).
 - `append` for JSONL only needs `value` (root-level record append).
-- On Windows PowerShell, JSON string values may need extra quote escaping.
+
+## PowerShell Limitation & Workaround
+
+On Windows PowerShell, passing JSON strings with quotes via command line is problematic - quotes get stripped by the shell parser.
+
+### Workaround: Temp File Method
+
+For complex values (JSON objects/arrays), use the temp file approach:
+
+```bash
+# 1. Error shows problematic line
+jsonseek shape broken.jsonl
+# Error: Line 2: {"id": 2, "broken}
+
+# 2. Extract line to temp file
+jsonseek cutline broken.jsonl 2 --save-temp
+# C:\Users\...\tmpXXXX.jsonline
+
+# 3. LLM edits the temp file, then:
+python -c "open('C:\\Users\\...\\tmpXXXX.jsonline','w',encoding='utf-8').write('{\"id\": 2, \"name\": \"fixed\"}')"
+
+# 4. Replace the line
+jsonseek replaceline broken.jsonl 2 --from-file C:\Users\...\tmpXXXX.jsonline
+```
+
+### Python API Method (Recommended for Complex Values)
+
+Import directly in Python scripts to bypass shell quoting issues:
+
+```python
+import sys
+sys.path.insert(0, 'src')
+
+from jsonseek.commands.set_cmd import set_value
+from jsonseek.commands.add_cmd import add_value
+from jsonseek.commands.del_cmd import del_value
+from jsonseek.commands.replaceline_cmd import replace_line
+
+# Set/Add complex values
+set_value('file.json', 'path', {"key": "value"})
+add_value('file.json', 'path', ["item1", "item2"])
+
+# Delete
+del_value('file.json', 'path')
+
+# Replace line in file
+replace_line('file.jsonl', 5, '{"id": 5, "name": "fixed"}')
+```
+
+### Command Reference with --from-file
+
+For `set`, `add`, `replaceline`, use `--from-file` instead of passing value on command line:
+
+```bash
+# Instead of (fails with complex values):
+jsonseek set file.json path '{"key": "value"}'
+
+# Use:
+echo '{"key": "value"}' > tmp.json
+jsonseek set file.json path --from-file tmp.json
+```
 
 ## References
 

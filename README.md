@@ -101,21 +101,39 @@ JSONSEEK --version    # JSONSEEK 0.1.0
 - `--backup` — 修改前创建 `.bak`
 - `--kind {json,jsonl}` — 强制指定文件类型
 
-### Windows PowerShell 引号陷阱
+### Windows PowerShell 引号陷阱与解决方案
 
-PowerShell 会吃掉 JSON 字符串里的双引号，导致 `append` 或 `set` 的 JSON 值退化为裸字符串：
+PowerShell 会吃掉 JSON 字符串里的双引号，导致复杂值传递失败。有两种解决方案：
+
+#### 方案 1：临时文件方法（推荐）
 
 ```powershell
-# 错误：会变成字符串 "{id:4,name:eve}"
-JSONSEEK append data.json items '{"id":4,"name":"eve"}'
+# 用 --from-file 代替命令行传值
+echo '{"key": "value"}' > tmp.json
+JSONSEEK set data.json path --from-file tmp.json
 
-# 正确：用 Python 中转生成 JSON
-python -c "import json; print(json.dumps({'id':4,'name':'eve'}))" | Set-Content v.txt -NoNewline
-$v = Get-Content v.txt
-JSONSEEK append data.json items $v
+# cutline/replaceline 配合修复错误行
+JSONSEEK cutline broken.jsonl 5 --save-temp
+# 修改临时文件后
+JSONSEEK replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
 ```
 
-在 macOS/Linux bash 或 Windows CMD 中没有这个问题。
+#### 方案 2：Python API（完全绕过命令行）
+
+```python
+import sys
+sys.path.insert(0, 'src')
+from jsonseek.commands.set_cmd import set_value
+from jsonseek.commands.add_cmd import add_value
+from jsonseek.commands.replaceline_cmd import replace_line
+
+# 直接传 Python 对象，无需转义
+set_value('data.json', 'path', {"key": "value"})
+add_value('data.json', 'items', ["item1", "item2"])
+replace_line('data.jsonl', 5, '{"id": 5, "fixed": true}')
+```
+
+在 macOS/Linux bash 或 Windows CMD 中没有引号问题。
 
 ---
 
@@ -223,6 +241,44 @@ JSONSEEK get large.json data[0].metrics.cpu_usage
 JSONSEEK set large.json data[0].metrics.cpu_usage 45.0
 ```
 
+### 场景 4：大文件 Debug 与错误修复
+
+JSON 文件损坏或语法错误时，JSONSEEK 能精确定位问题行，配合临时文件方法实现安全修复：
+
+```bash
+# Step 1: 发现错误（自动定位到行）
+JSONSEEK shape broken.jsonl
+# Error: Found 2 invalid lines in broken.jsonl:
+#   Line 5: {"id": 5, "broken
+#     Error: Unterminated string starting at
+#   Line 12: {"id": 12, "another}
+#     Error: Unterminated string starting at
+
+# Step 2: 提取问题行到临时文件
+JSONSEEK cutline broken.jsonl 5 --save-temp
+# C:\Users\...\tmpXXXX.jsonline
+
+# Step 3: 用 Python 修复临时文件（绕过 PowerShell 引号问题）
+python -c "open(r'C:\Users\...\tmpXXXX.jsonline','w',encoding='utf-8').write('{\"id\": 5, \"name\": \"fixed\"}')"
+
+# Step 4: 替换回原文件
+JSONSEEK replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
+
+# Step 5: 验证修复
+JSONSEEK shape broken.jsonl
+# (root)
+#   id  (integer)
+#   name  (string)
+```
+
+**Debug 场景 Token 节省对比：**
+
+| 场景 | 传统方式（全量读取） | JSONSEEK 方式 | 节省 |
+|-----|---------------------|---------------|------|
+| 定位 10MB JSONL 中的语法错误 | 读取全量 ~2.5M tokens | shape 输出 ~200 tokens | **99.99%** |
+| 修复损坏 JSONL 的第 5 行 | 读取上下文 + 修改 ~500K tokens | cutline + replaceline ~1K tokens | **99.8%** |
+| 批量修复 N 处错误 | N × 上下文读取 | N × (cutline + replaceline) | **~99%** |
+
 ---
 
 ## 项目结构
@@ -251,6 +307,9 @@ tests/              # 单元测试（53 个用例）
 - [x] JSONL 流式扫描与 rewrite
 - [x] `--output json` 机器输出
 - [x] Windows / macOS / Linux 跨平台支持
+- [x] 大文件错误定位与修复（cutline/replaceline）
+- [x] Python API 方法（set_value/add_value/del_value）
+- [x] PowerShell 临时文件绕过方案
 - [ ] `--dry-run` 预览修改
 - [ ] Claude Code / Cursor / OpenAI-compatible coding workflows 插件化接入
 

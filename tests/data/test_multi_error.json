@@ -1,0 +1,8 @@
+{
+  "name": "测试",
+  "age": 30,
+  "error1": missing comma
+  "error2": "also bad"
+  "error3": broken
+  "normal": "ok"
+}

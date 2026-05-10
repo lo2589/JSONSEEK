@@ -7,6 +7,31 @@ from ..errors import JsonseekError
 from .encoding import resolve_encoding
 
 
+def _get_line_content(path: str, line_number: int, encoding: str) -> str:
+    """Get the content of a specific line (1-indexed)."""
+    try:
+        with open(path, "r", encoding=encoding) as f:
+            for i, line in enumerate(f, 1):
+                if i == line_number:
+                    return line.rstrip('\n\r')
+    except Exception:
+        pass
+    return ""
+
+
+def _format_json_error(path: str, e: json.JSONDecodeError, encoding: str) -> str:
+    """Format a JSON decode error with line content."""
+    line = e.lineno or 0
+    col = e.colno or 0
+    line_content = _get_line_content(path, line, encoding)
+    
+    msg = f"Invalid JSON at line {line} in {path}\n"
+    msg += f"  Line {line}: {line_content}\n"
+    msg += f"  {e.msg}"
+    
+    return msg
+
+
 def load_json_file(path: str, encoding: Optional[str] = None) -> Any:
     """Load a JSON file and return the Python tree.
 
@@ -19,7 +44,7 @@ def load_json_file(path: str, encoding: Optional[str] = None) -> Any:
     except FileNotFoundError:
         raise JsonseekError(f"File not found: {path}")
     except json.JSONDecodeError as e:
-        raise JsonseekError(f"Invalid JSON in {path}: {e}")
+        raise JsonseekError(_format_json_error(path, e, detected))
 
 
 def dump_json_data(data: Any, pretty: bool = True) -> str:

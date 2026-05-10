@@ -59,20 +59,23 @@ def build_parser() -> argparse.ArgumentParser:
     add_p = sub.add_parser("add", help="Add a key/value to an object")
     add_common(add_p)
     add_p.add_argument("path", help="Target path")
-    add_p.add_argument("value", help="Value to add (JSON string or literal)")
+    add_p.add_argument("value", nargs="?", default=None, help="Value to add (JSON string or literal)")
     add_p.add_argument("--create-missing", action="store_true", default=False, help="Create missing intermediate keys")
+    add_p.add_argument("--from-file", default=None, help="Read value from file")
 
     # del
     del_p = sub.add_parser("del", help="Delete a key or array element")
     add_common(del_p)
     del_p.add_argument("path", help="Target path to delete")
+    del_p.add_argument("-y", "--yes", action="store_true", help="Skip confirmation")
 
     # set
     set_p = sub.add_parser("set", help="Set a value at a path")
     add_common(set_p)
     set_p.add_argument("path", help="Target path")
-    set_p.add_argument("value", help="Value to set (JSON string or literal)")
+    set_p.add_argument("value", nargs="?", default=None, help="Value to set (JSON string or literal)")
     set_p.add_argument("--create-missing", action="store_true", default=False, help="Create missing intermediate keys")
+    set_p.add_argument("--from-file", default=None, help="Read value from file")
 
     # append
     append_p = sub.add_parser("append", help="Append a value to an array or JSONL file")
@@ -93,6 +96,21 @@ def build_parser() -> argparse.ArgumentParser:
     add_common(extend_p)
     extend_p.add_argument("path", help="Target array path")
     extend_p.add_argument("value", help="JSON array string to extend with")
+
+    # cutline
+    cutline_p = sub.add_parser("cutline", help="Extract a specific line from a file")
+    cutline_p.add_argument("file", help="Target file")
+    cutline_p.add_argument("line", type=int, help="Line number to extract (1-indexed)")
+    cutline_p.add_argument("--encoding", default=None, help="File encoding")
+    cutline_p.add_argument("--save-temp", action="store_true", help="Save to temp file and return path")
+
+    # replaceline
+    replaceline_p = sub.add_parser("replaceline", help="Replace a line in a file")
+    replaceline_p.add_argument("file", help="Target file")
+    replaceline_p.add_argument("line", type=int, help="Line number (1-indexed)")
+    replaceline_p.add_argument("content", nargs='?', default=None, help="Content to insert")
+    replaceline_p.add_argument("--encoding", default=None, help="File encoding")
+    replaceline_p.add_argument("--from-file", default=None, help="Read content from file")
 
     return parser
 
@@ -120,6 +138,8 @@ def dispatch_command(args: argparse.Namespace) -> int:
         "append": commands.append_cmd.handle_append,
         "extract": commands.extract_cmd.handle_extract,
         "extend": commands.extend_cmd.handle_extend,
+        "cutline": commands.cutline_cmd.handle_cutline,
+        "replaceline": commands.replaceline_cmd.handle_replaceline,
     }
     handler = handlers.get(command)
     if handler is None:

@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from ..detect import detect_file_kind
 from ..io.json_file import load_json_file
-from ..io.jsonl_file import load_jsonl_sample
+from ..io.jsonl_file import load_jsonl_sample, get_all_jsonl_errors
 from ..types import ShapeNode, NodeKind
 from ..value_utils import infer_node_kind, stable_type_name
 from ..formatters import format_shape_result
@@ -17,6 +17,11 @@ def handle_shape(args: argparse.Namespace) -> int:
         array_mode = getattr(args, "array_mode", "sample")
         enc = getattr(args, "encoding", None)
         if kind == "jsonl":
+            # Check for errors first and report all
+            errors = get_all_jsonl_errors(args.file, encoding=enc)
+            if errors:
+                from ..io.jsonl_file import _format_multi_jsonl_error
+                raise JsonseekError(_format_multi_jsonl_error(args.file, errors))
             shape = build_shape_tree_from_jsonl(
                 args.file,
                 sample_size=getattr(args, "sample_size", 100),

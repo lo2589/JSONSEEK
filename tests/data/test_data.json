@@ -1,23 +1,41 @@
 {
-  "name": "测试用户",
+  "name": "newname",
   "age": 30,
   "email": "test@example.com",
   "active": true,
-  "tags": ["管理员", "测试用户", "VIP"],
+  "tags": [
+    "管理员",
+    "测试用户",
+    "VIP"
+  ],
   "profile": {
     "department": "技术部",
     "city": "北京",
     "address": "北京市朝阳区某街道123号",
     "phone": "138-0000-1234"
   },
-  "scores": [95, 88, 72, 100],
+  "scores": [
+    95,
+    88,
+    72,
+    100
+  ],
   "projects": [
-    {"id": 1, "name": "项目A", "status": "完成"},
-    {"id": 2, "name": "项目B", "status": "进行中"}
+    {
+      "id": 1,
+      "name": "项目A",
+      "status": "完成"
+    },
+    {
+      "id": 2,
+      "name": "项目B",
+      "status": "进行中"
+    }
   ],
   "metadata": {
     "created_at": "2024-01-15",
     "updated_at": "2024-06-20",
     "version": 2
-  }
+  },
+  "newfield": "testvalue"
 }

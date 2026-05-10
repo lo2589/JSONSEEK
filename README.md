@@ -1,4 +1,4 @@
-# jsonseek
+# JSONSEEK
 
 > **给开发者和 coding agent 的 JSON/JSONL 导航与局部操作工具。**
 >
@@ -19,13 +19,13 @@ JSON 是现代数据交换的事实标准。从机器学习实验记录、API �
 
 问题是：**JSON 文件越大，LLM 和开发者处理它的成本越高**。全量 `cat` 一个 10MB 的 JSON 进上下文，相当于烧掉几百万 token；即使人类开发者，在几千行嵌套结构里找某个字段也是折磨。
 
-**jsonseek 就是来解决这个问题的**——用局部操作替代全量读取，用结构化查询替代肉眼翻找。对于需要频繁处理 JSON/JSONL 的 coding agent 和开发者来说，这是一个值得一看的工具。
+**JSONSEEK 就是来解决这个问题的**——用局部操作替代全量读取，用结构化查询替代肉眼翻找。对于需要频繁处理 JSON/JSONL 的 coding agent 和开发者来说，这是一个值得一看的工具。
 
 ---
 
-## 为什么用 jsonseek（面向 Coding Agent）
+## 为什么用 JSONSEEK（面向 Coding Agent）
 
-当你面对一个 10MB 的 JSON 文件时，全量 `cat` 进上下文是灾难性的 token 浪费。jsonseek 让你：
+当你面对一个 10MB 的 JSON 文件时，全量 `cat` 进上下文是灾难性的 token 浪费。JSONSEEK 让你：
 
 1. **先理解结构** — `shape` 看骨架，`fields` 看字段清单，不用读内容
 2. **再定位目标** — `query` 搜索关键词，`ls` 看某层的子节点，`get` 取具体值
@@ -33,7 +33,7 @@ JSON 是现代数据交换的事实标准。从机器学习实验记录、API �
 
 ### Token 节省估算
 
-| 文件大小 | 操作 | 全量读取 | jsonseek 输出 | 节省 |
+| 文件大小 | 操作 | 全量读取 | JSONSEEK 输出 | 节省 |
 |---|---|---|---|---|
 | 100KB 配置 JSON | `shape` | ~25K tokens | ~100 tokens | **99%+** |
 | 100KB 配置 JSON | `fields` | ~25K tokens | ~300 tokens | **98%+** |
@@ -48,16 +48,16 @@ JSON 是现代数据交换的事实标准。从机器学习实验记录、API �
 
 ```bash
 # Step 1: 理解结构（零内容读取，纯元数据）
-jsonseek shape config.json          # 看到有几层、数组多大
-jsonseek fields config.json         # 看到所有字段名和类型
+JSONSEEK shape config.json          # 看到有几层、数组多大
+JSONSEEK fields config.json         # 看到所有字段名和类型
 
 # Step 2: 定位目标（只读命中部分）
-jsonseek query config.json api_key  # 找到 api_key 在哪
-jsonseek get config.json services[0].endpoint
+JSONSEEK query config.json api_key  # 找到 api_key 在哪
+JSONSEEK get config.json services[0].endpoint
 
 # Step 3: 局部修改（只写目标路径）
-jsonseek set config.json services[0].endpoint "https://new.api.com"
-jsonseek del config.json services[0].deprecated_field
+JSONSEEK set config.json services[0].endpoint "https://new.api.com"
+JSONSEEK del config.json services[0].deprecated_field
 ```
 
 ---
@@ -66,7 +66,7 @@ jsonseek del config.json services[0].deprecated_field
 
 ```bash
 pip install -e .
-jsonseek --version    # jsonseek 0.1.0
+JSONSEEK --version    # JSONSEEK 0.1.0
 ```
 
 要求 Python >= 3.8。跨平台支持 Windows / macOS / Linux。
@@ -107,12 +107,12 @@ PowerShell 会吃掉 JSON 字符串里的双引号，导致 `append` 或 `set` �
 
 ```powershell
 # 错误：会变成字符串 "{id:4,name:eve}"
-jsonseek append data.json items '{"id":4,"name":"eve"}'
+JSONSEEK append data.json items '{"id":4,"name":"eve"}'
 
 # 正确：用 Python 中转生成 JSON
 python -c "import json; print(json.dumps({'id':4,'name':'eve'}))" | Set-Content v.txt -NoNewline
 $v = Get-Content v.txt
-jsonseek append data.json items $v
+JSONSEEK append data.json items $v
 ```
 
 在 macOS/Linux bash 或 Windows CMD 中没有这个问题。
@@ -123,19 +123,19 @@ jsonseek append data.json items $v
 
 ```bash
 # 点号分隔
-jsonseek get data.json meta.settings.timeout
+JSONSEEK get data.json meta.settings.timeout
 
 # 方括号键名（支持字符串键）
-jsonseek get data.json meta[settings][timeout]
-jsonseek get data.json users[0][name]
+JSONSEEK get data.json meta[settings][timeout]
+JSONSEEK get data.json users[0][name]
 
 # 数组索引
-jsonseek get data.json items[0][1]
+JSONSEEK get data.json items[0][1]
 
 # JSONL 记录选择器
-jsonseek get data.jsonl '[0].name'
-jsonseek get data.jsonl 'records[12].payload.diff'
-jsonseek set data.jsonl '[0].age' 30
+JSONSEEK get data.jsonl '[0].name'
+JSONSEEK get data.jsonl 'records[12].payload.diff'
+JSONSEEK set data.jsonl '[0].age' 30
 ```
 
 规则：
@@ -163,7 +163,7 @@ jsonseek set data.jsonl '[0].age' 30
 ### 场景 1：探索未知配置 JSON
 
 ```bash
-jsonseek shape config.json
+JSONSEEK shape config.json
 # (root)
 #   services
 #     services[*]  (object) [5]
@@ -174,7 +174,7 @@ jsonseek shape config.json
 #     database.host
 #     database.port
 
-jsonseek fields config.json
+JSONSEEK fields config.json
 # services  types=array  paths=1
 # name      types=string paths=5
 # endpoint  types=string paths=5
@@ -183,33 +183,33 @@ jsonseek fields config.json
 # host      types=string paths=1
 # port      types=integer paths=1
 
-jsonseek query config.json production
+JSONSEEK query config.json production
 # services[2].name  [value] 'production'
 
-jsonseek get config.json services[2].endpoint
+JSONSEEK get config.json services[2].endpoint
 # https://prod.api.example.com
 ```
 
 ### 场景 2：批量修改 JSONL
 
 ```bash
-jsonseek shape logs.jsonl
+JSONSEEK shape logs.jsonl
 # (root)
 #   timestamp  (string)
 #   level      (string)
 #   message    (string)
 
-jsonseek query logs.jsonl ERROR --max-results 5
+JSONSEEK query logs.jsonl ERROR --max-results 5
 # message  [value] 'connection failed' record=12 line=15
 
 # 把第 12 条记录的 level 改成 warning
-jsonseek set logs.jsonl '[12].level' "warning"
+JSONSEEK set logs.jsonl '[12].level' "warning"
 
 # 删除第 100 条记录
-jsonseek del logs.jsonl '[100]'
+JSONSEEK del logs.jsonl '[100]'
 
 # 追加新记录
-jsonseek append logs.jsonl '{"timestamp":"2024-01-01","level":"info","message":"started"}'
+JSONSEEK append logs.jsonl '{"timestamp":"2024-01-01","level":"info","message":"started"}'
 ```
 
 ### 场景 3：精确局部修改（避免全量读取）
@@ -217,10 +217,10 @@ jsonseek append logs.jsonl '{"timestamp":"2024-01-01","level":"info","message":"
 ```bash
 # 不要这样：cat 10MB.json | 塞给 LLM 分析
 # 要这样：
-jsonseek get large.json data[0].metrics.cpu_usage
+JSONSEEK get large.json data[0].metrics.cpu_usage
 # 42.5
 
-jsonseek set large.json data[0].metrics.cpu_usage 45.0
+JSONSEEK set large.json data[0].metrics.cpu_usage 45.0
 ```
 
 ---
@@ -228,7 +228,7 @@ jsonseek set large.json data[0].metrics.cpu_usage 45.0
 ## 项目结构
 
 ```
-src/jsonseek/
+src/JSONSEEK/
   cli.py            # CLI 入口
   types.py          # 核心数据类型
   errors.py         # 异常

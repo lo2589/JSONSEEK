@@ -49,16 +49,16 @@ JSON 是现代数据交换的事实标准。从机器学习实验记录、API �
 
 ```bash
 # Step 1: 理解结构（零内容读取，纯元数据）
-JSONSEEK shape config.json          # 看到有几层、数组多大
-JSONSEEK fields config.json         # 看到所有字段名和类型
+jsonseek shape config.json          # 看到有几层、数组多大
+jsonseek fields config.json         # 看到所有字段名和类型
 
 # Step 2: 定位目标（只读命中部分）
-JSONSEEK query config.json api_key  # 找到 api_key 在哪
-JSONSEEK get config.json services[0].endpoint
+jsonseek query config.json api_key  # 找到 api_key 在哪
+jsonseek get config.json services[0].endpoint
 
 # Step 3: 局部修改（只写目标路径）
-JSONSEEK set config.json services[0].endpoint "https://new.api.com"
-JSONSEEK del config.json services[0].deprecated_field
+jsonseek set config.json services[0].endpoint "https://new.api.com"
+jsonseek del config.json services[0].deprecated_field
 ```
 
 ---
@@ -67,7 +67,7 @@ JSONSEEK del config.json services[0].deprecated_field
 
 ```bash
 pip install -e .
-JSONSEEK --version    # JSONSEEK 0.1.0
+jsonseek --version    # JSONSEEK 0.1.0
 ```
 
 要求 Python >= 3.8。跨平台支持 Windows / macOS / Linux。
@@ -85,6 +85,8 @@ JSONSEEK --version    # JSONSEEK 0.1.0
 | `ls FILE [PATH]` | 列出某路径下的子节点 | 像 `ls` 目录一样浏览 JSON |
 | `get FILE PATH` | 获取某个路径的值 | 精确读取单个值，避免全量加载 |
 | `query FILE TERM` | 搜索 key 或 value | 找某个配置项在哪 |
+| `extract PATTERN PATH` | 批量提取同路径值 | 从多个配置文件抓同一个字段 |
+| `concat PATTERN` | 多个 JSON 拼成 JSONL | 批量格式转换、数据归集 |
 
 ### 写命令（会修改文件，建议加 `--backup`）
 
@@ -93,7 +95,8 @@ JSONSEEK --version    # JSONSEEK 0.1.0
 | `set FILE PATH VALUE` | 设置值 | 修改配置项、更新 URL、改数值 |
 | `add FILE PATH VALUE` | 给对象加新键 | 新增配置字段 |
 | `del FILE PATH` | 删除键或数组元素 | 清理废弃字段 |
-| `append FILE PATH VALUE` | 往数组追加（JSON） | 往列表加新项 |
+| `append FILE PATH VALUE` | 往数组追加单个元素（JSON） | 往列表加一个新项 |
+| `extend FILE PATH VALUE` | 往数组批量追加（JSON） | 一次性往列表加多个元素 |
 | `append FILE VALUE` | 追加记录（JSONL） | 往 JSONL 末尾加记录 |
 
 ### 全局选项
@@ -111,12 +114,12 @@ PowerShell 会吃掉 JSON 字符串里的双引号，导致复杂值传递失败
 ```powershell
 # 用 --from-file 代替命令行传值
 echo '{"key": "value"}' > tmp.json
-JSONSEEK set data.json path --from-file tmp.json
+jsonseek set data.json path --from-file tmp.json
 
 # cutline/replaceline 配合修复错误行
-JSONSEEK cutline broken.jsonl 5 --save-temp
+jsonseek cutline broken.jsonl 5 --save-temp
 # 修改临时文件后
-JSONSEEK replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
+jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
 ```
 
 #### 方案 2：Python API（完全绕过命令行）
@@ -142,19 +145,19 @@ replace_line('data.jsonl', 5, '{"id": 5, "fixed": true}')
 
 ```bash
 # 点号分隔
-JSONSEEK get data.json meta.settings.timeout
+jsonseek get data.json meta.settings.timeout
 
 # 方括号键名（支持字符串键）
-JSONSEEK get data.json meta[settings][timeout]
-JSONSEEK get data.json users[0][name]
+jsonseek get data.json meta[settings][timeout]
+jsonseek get data.json users[0][name]
 
 # 数组索引
-JSONSEEK get data.json items[0][1]
+jsonseek get data.json items[0][1]
 
 # JSONL 记录选择器
-JSONSEEK get data.jsonl '[0].name'
-JSONSEEK get data.jsonl 'records[12].payload.diff'
-JSONSEEK set data.jsonl '[0].age' 30
+jsonseek get data.jsonl '[0].name'
+jsonseek get data.jsonl 'records[12].payload.diff'
+jsonseek set data.jsonl '[0].age' 30
 ```
 
 规则：
@@ -182,7 +185,7 @@ JSONSEEK set data.jsonl '[0].age' 30
 ### 场景 1：探索未知配置 JSON
 
 ```bash
-JSONSEEK shape config.json
+jsonseek shape config.json
 # (root)
 #   services
 #     services[*]  (object) [5]
@@ -193,7 +196,7 @@ JSONSEEK shape config.json
 #     database.host
 #     database.port
 
-JSONSEEK fields config.json
+jsonseek fields config.json
 # services  types=array  paths=1
 # name      types=string paths=5
 # endpoint  types=string paths=5
@@ -202,33 +205,33 @@ JSONSEEK fields config.json
 # host      types=string paths=1
 # port      types=integer paths=1
 
-JSONSEEK query config.json production
+jsonseek query config.json production
 # services[2].name  [value] 'production'
 
-JSONSEEK get config.json services[2].endpoint
+jsonseek get config.json services[2].endpoint
 # https://prod.api.example.com
 ```
 
 ### 场景 2：批量修改 JSONL
 
 ```bash
-JSONSEEK shape logs.jsonl
+jsonseek shape logs.jsonl
 # (root)
 #   timestamp  (string)
 #   level      (string)
 #   message    (string)
 
-JSONSEEK query logs.jsonl ERROR --max-results 5
+jsonseek query logs.jsonl ERROR --max-results 5
 # message  [value] 'connection failed' record=12 line=15
 
 # 把第 12 条记录的 level 改成 warning
-JSONSEEK set logs.jsonl '[12].level' "warning"
+jsonseek set logs.jsonl '[12].level' "warning"
 
 # 删除第 100 条记录
-JSONSEEK del logs.jsonl '[100]'
+jsonseek del logs.jsonl '[100]'
 
 # 追加新记录
-JSONSEEK append logs.jsonl '{"timestamp":"2024-01-01","level":"info","message":"started"}'
+jsonseek append logs.jsonl '{"timestamp":"2024-01-01","level":"info","message":"started"}'
 ```
 
 ### 场景 3：精确局部修改（避免全量读取）
@@ -236,19 +239,44 @@ JSONSEEK append logs.jsonl '{"timestamp":"2024-01-01","level":"info","message":"
 ```bash
 # 不要这样：cat 10MB.json | 塞给 LLM 分析
 # 要这样：
-JSONSEEK get large.json data[0].metrics.cpu_usage
+jsonseek get large.json data[0].metrics.cpu_usage
 # 42.5
 
-JSONSEEK set large.json data[0].metrics.cpu_usage 45.0
+jsonseek set large.json data[0].metrics.cpu_usage 45.0
 ```
 
-### 场景 4：大文件 Debug 与错误修复
+### 场景 4：批量提取与数组扩展
+
+```bash
+# 从多个实验记录里批量提取同一个字段
+jsonseek extract "experiments/*/metrics.json" training.loss --output json
+# [{"file":"exp1/metrics.json","value":0.12,"ok":true}, ...]
+
+# 往数组一次性追加多个元素（extend 会把数组拆开，逐个追加）
+jsonseek extend data.json tags '["urgent", "review"]'
+# 等价于依次 append "urgent" 和 "review"
+```
+
+### 场景 5：多个 JSON 合并为 JSONL
+
+```bash
+# 把目录下所有 JSON 实验记录转成单条 JSONL
+jsonseek concat "experiments/*/result.json" -o combined.jsonl
+# combined.jsonl:
+# {"experiment":"exp1","accuracy":0.95}
+# {"experiment":"exp2","accuracy":0.92}
+
+# 默认按文件名排序；保持原始顺序加 --no-sort
+jsonseek concat "logs/*.json" --no-sort -o logs.jsonl
+```
+
+### 场景 6：大文件 Debug 与错误修复
 
 JSON 文件损坏或语法错误时，JSONSEEK 能精确定位问题行，配合临时文件方法实现安全修复：
 
 ```bash
 # Step 1: 发现错误（自动定位到行）
-JSONSEEK shape broken.jsonl
+jsonseek shape broken.jsonl
 # Error: Found 2 invalid lines in broken.jsonl:
 #   Line 5: {"id": 5, "broken
 #     Error: Unterminated string starting at
@@ -256,17 +284,17 @@ JSONSEEK shape broken.jsonl
 #     Error: Unterminated string starting at
 
 # Step 2: 提取问题行到临时文件
-JSONSEEK cutline broken.jsonl 5 --save-temp
+jsonseek cutline broken.jsonl 5 --save-temp
 # C:\Users\...\tmpXXXX.jsonline
 
 # Step 3: 用 Python 修复临时文件（绕过 PowerShell 引号问题）
 python -c "open(r'C:\Users\...\tmpXXXX.jsonline','w',encoding='utf-8').write('{\"id\": 5, \"name\": \"fixed\"}')"
 
 # Step 4: 替换回原文件
-JSONSEEK replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
+jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
 
 # Step 5: 验证修复
-JSONSEEK shape broken.jsonl
+jsonseek shape broken.jsonl
 # (root)
 #   id  (integer)
 #   name  (string)
@@ -285,7 +313,7 @@ JSONSEEK shape broken.jsonl
 ## 项目结构
 
 ```
-src/JSONSEEK/
+src/jsonseek/
   cli.py            # CLI 入口
   types.py          # 核心数据类型
   errors.py         # 异常

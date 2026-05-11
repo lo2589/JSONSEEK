@@ -129,7 +129,9 @@ def format_extract_result(results: List[Any], output: str = "pretty") -> str:
     lines: List[str] = []
     for r in results:
         if not r.get("ok"):
-            lines.append(f"{r['file']:<40} [missing] {r.get('error', '')}")
+            error = r.get("error", "")
+            tag = "[skipped]" if error.startswith("Skipped:") else "[missing]"
+            lines.append(f"{r['file']:<40} {tag} {error}")
             continue
         value = r["value"]
         if isinstance(value, (dict, list)):

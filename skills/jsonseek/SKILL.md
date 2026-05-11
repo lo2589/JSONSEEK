@@ -67,7 +67,8 @@ jsonseek set file.json path value              # update existing
 jsonseek set file.json path value --create-missing
 jsonseek add file.json path value              # add new key (object only)
 jsonseek del file.json path                    # delete key or array index
-jsonseek append file.json array_path value     # append to array
+jsonseek append file.json array_path value     # append one item to array
+jsonseek extend file.json array_path value     # extend array with multiple items (JSON array)
 ```
 
 ### 5. Edit JSONL files
@@ -90,19 +91,31 @@ jsonseek append file.jsonl '{"name":"new"}'    # append record
 
 ### Batch extract
 
-Use `extract PATTERN PATH` to pull the same path from many files:
+Use `extract PATTERN PATH` to pull the same path from many JSON files:
 
 ```bash
 jsonseek extract "experiments/*/metrics.json" training.loss
 jsonseek extract "configs/*.json" api.endpoint --output json
+jsonseek extract "data/**/*.json" meta.version
 ```
 
-JSONL paths start with a record selector: `[N].field` or `records[N].field`.
+**Note:** `extract` is for batch operations on JSON files only. JSONL files will appear as `[skipped]` in the output.
+
+### Concatenate JSON files to JSONL
+
+Use `concat PATTERN` to merge multiple JSON files into a single JSONL file:
+
+```bash
+jsonseek concat "experiments/*/result.json" -o combined.jsonl
+jsonseek concat "data/*.json" --no-sort -o output.jsonl
+```
 
 ## Important Notes
 
 - Use `--output json` when piping output to another tool.
 - Use `--backup` before write operations to create `.bak`.
+- `append` adds a single item to an array.
+- `extend` adds all items from a JSON array to the target array.
 - `append` for JSON requires `path value` (array path + value).
 - `append` for JSONL only needs `value` (root-level record append).
 

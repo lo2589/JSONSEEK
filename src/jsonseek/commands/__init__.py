@@ -9,5 +9,6 @@ from . import set_cmd
 from . import append_cmd
 from . import extract_cmd
 from . import extend_cmd
+from . import concat_cmd
 from . import cutline_cmd
 from . import replaceline_cmd

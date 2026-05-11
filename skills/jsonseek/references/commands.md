@@ -132,7 +132,7 @@ jsonseek del data.jsonl '[2]'          # delete whole record
 
 ## append — Append to Array
 
-Append a value to an array (JSON) or append a record (JSONL).
+Append a single value to an array (JSON) or append a record (JSONL).
 
 ```bash
 jsonseek append data.json items '{"id":3}'
@@ -143,6 +143,42 @@ jsonseek append data.jsonl '{"name":"new"}'
 
 ---
 
+## extend — Extend Array
+
+Extend an array by appending all elements from a JSON array value (JSON only, not supported for JSONL).
+
+```bash
+jsonseek extend data.json items '[1, 2, 3]'
+jsonseek extend data.json tags '["urgent", "review"]'
+```
+
+**Note:** `extend` is for JSON only. Use `append` for JSONL records.
+
+---
+
+## concat — Concatenate JSON to JSONL
+
+Merge multiple JSON files into a single JSONL file.
+
+```bash
+jsonseek concat "*.json" -o output.jsonl
+jsonseek concat "data/**/*.json" -o combined.jsonl
+jsonseek concat "experiments/*/result.json" --no-sort -o results.jsonl
+```
+
+**Arguments:**
+- `pattern` — glob pattern to match JSON files
+
+**Options:**
+- `-o, --output-file FILE` — write to file instead of stdout
+- `--no-sort` — preserve glob order instead of sorting by filename
+- `--encoding` — file encoding (auto-detect by default)
+
+**Output:**
+Each matched JSON file is serialized to one line in JSONL format, sorted by filename by default.
+
+---
+
 ## extract — Batch Extract
 
 Extract the same path from multiple JSON files matching a glob pattern.
@@ -150,7 +186,7 @@ Extract the same path from multiple JSON files matching a glob pattern.
 ```bash
 jsonseek extract "*.json" user.name
 jsonseek extract "data/*.json" metrics.cpu --output json
-jsonseek extract "*.json" meta.owner --include-missing
+jsonseek extract "data/**/*.json" api.endpoint --include-missing
 ```
 
 **Arguments:**
@@ -160,13 +196,18 @@ jsonseek extract "*.json" meta.owner --include-missing
 **Options:**
 - `--output {pretty,json}` — output format
 - `--kind {json,jsonl}` — force file kind
-- `--include-missing` — include files where the path does not exist (default: skip them)
+- `--include-missing` — include files where the path does not exist (default: show them)
+
+**Notes:**
+- `extract` is for batch operations on JSON files only; JSONL files will appear as `[skipped]` in the output.
+- All matched files appear in the output, including those with missing paths or unsupported formats.
 
 **Output (pretty):**
 ```
 a.json   alice
 b.json   bob
-c.json   [missing]
+c.json   [missing] Path not found
+d.jsonl  [skipped] Skipped: extract only supports JSON files
 ```
 
 **Output (json):**
@@ -174,6 +215,7 @@ c.json   [missing]
 [
   {"file": "a.json", "value": "alice", "ok": true},
   {"file": "b.json", "value": "bob", "ok": true},
-  {"file": "c.json", "value": null, "ok": false, "error": "Path not found"}
+  {"file": "c.json", "value": null, "ok": false, "error": "Path not found"},
+  {"file": "d.jsonl", "value": null, "ok": false, "error": "Skipped: extract does not support JSONL files"}
 ]
 ```

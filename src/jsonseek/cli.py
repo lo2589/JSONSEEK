@@ -97,6 +97,13 @@ def build_parser() -> argparse.ArgumentParser:
     extend_p.add_argument("path", help="Target array path")
     extend_p.add_argument("value", help="JSON array string to extend with")
 
+    # concat
+    concat_p = sub.add_parser("concat", help="Concatenate multiple JSON files into JSONL")
+    concat_p.add_argument("pattern", help="Glob pattern to match JSON files (e.g. '*.json' or 'data/*.json')")
+    concat_p.add_argument("--output-file", "-o", default=None, help="Output JSONL file (default: stdout)")
+    concat_p.add_argument("--encoding", default=None, help="File encoding (auto-detect by default)")
+    concat_p.add_argument("--no-sort", action="store_true", default=False, help="Preserve glob order instead of sorting by filename")
+
     # cutline
     cutline_p = sub.add_parser("cutline", help="Extract a specific line from a file")
     cutline_p.add_argument("file", help="Target file")
@@ -138,6 +145,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
         "append": commands.append_cmd.handle_append,
         "extract": commands.extract_cmd.handle_extract,
         "extend": commands.extend_cmd.handle_extend,
+        "concat": commands.concat_cmd.handle_concat,
         "cutline": commands.cutline_cmd.handle_cutline,
         "replaceline": commands.replaceline_cmd.handle_replaceline,
     }

@@ -1,128 +1,128 @@
 # JSONSEEK
 
-> **给开发者和 coding agent 的 JSON/JSONL 导航与局部操作工具。**
+> **A JSON/JSONL navigation and partial manipulation tool for developers and coding agents.**
 >
-> 核心目的：减少 LLM 全量读取大 JSON 的 token 浪费。先 `shape`/`fields`/`query` 定位，再 `get`/`set`/`add`/`del`/`append` 局部操作。
+> Core purpose: Reduce token waste from LLMs reading entire large JSON files. Use `shape`/`fields`/`query` to locate, then `get`/`set`/`add`/`del`/`append` for partial operations.
 >
-> 支持 JSON + JSONL 的结构理解、字段简表、局部查询和局部修改。
+> Supports structural understanding, field summaries, partial querying, and partial modification for both JSON and JSONL.
 >
-> 支持 JSON + JSONL 的bug查找和局部修改。
+> Supports bug detection and partial fixes for both JSON and JSONL.
 ---
 
-## JSON 为什么值得专门做一个工具
+## Why JSON Deserves a Dedicated Tool
 
-JSON 是现代数据交换的事实标准。从机器学习实验记录、API 接口配置、应用日志流，到微服务注册表和爬虫数据存储，JSON/JSONL 无处不在：
+JSON is the de facto standard for modern data exchange. From ML experiment logs, API configs, application log streams, to microservice registries and crawler data stores, JSON/JSONL is everywhere:
 
-- **ML 实验追踪**：训练参数、指标曲线、模型配置全存在 JSON 里，一个实验目录轻松堆出几十 MB
-- **API/微服务配置**：服务发现、路由规则、环境变量往往以 JSON 配置形式管理
-- **日志与事件流**：结构化日志（JSONL）比纯文本更易查询，但文件体积增长极快
-- **数据交换**：前后端通信、服务间 RPC、爬虫落地，JSON 是最常见的数据格式
+- **ML Experiment Tracking**: Training parameters, metric curves, and model configs all live in JSON — a single experiment directory can easily reach tens of MB
+- **API/Microservice Configs**: Service discovery, routing rules, and environment variables are often managed as JSON configs
+- **Logs & Event Streams**: Structured logs (JSONL) are easier to query than plain text, but file sizes grow extremely fast
+- **Data Exchange**: Frontend-backend communication, inter-service RPC, and crawler output — JSON is the most common format
 
-问题是：**JSON 文件越大，LLM 和开发者处理它的成本越高**。全量 `cat` 一个 10MB 的 JSON 进上下文，相当于烧掉几百万 token；即使人类开发者，在几千行嵌套结构里找某个字段也是折磨。
+The problem: **The larger the JSON file, the more expensive it is for LLMs and developers to process**. `cat`-ing a 10MB JSON into context burns millions of tokens; even human developers suffer when searching for a field in thousands of lines of nested structure.
 
-**JSONSEEK 就是来解决这个问题的**——用局部操作替代全量读取，用结构化查询替代肉眼翻找。对于需要频繁处理 JSON/JSONL 的 coding agent 和开发者来说，这是一个值得一看的工具。
+**JSONSEEK solves this** — by replacing full reads with partial operations, and manual scanning with structured queries. For coding agents and developers who frequently handle JSON/JSONL, this tool is worth a look.
 
 ---
 
-## 为什么用 JSONSEEK（面向 Coding Agent）
+## Why Use JSONSEEK (For Coding Agents)
 
-当你面对一个 10MB 的 JSON 文件时，全量 `cat` 进上下文是灾难性的 token 浪费。JSONSEEK 让你：
+When facing a 10MB JSON file, `cat`-ing the entire file into context is catastrophic token waste. JSONSEEK lets you:
 
-1. **先理解结构** — `shape` 看骨架，`fields` 看字段清单，不用读内容
-2. **再定位目标** — `query` 搜索关键词，`ls` 看某层的子节点，`get` 取具体值
-3. **最后局部修改** — `set`/`add`/`del`/`append` 只改需要改的地方
+1. **Understand structure first** — `shape` for the skeleton, `fields` for the field list, without reading content
+2. **Locate targets next** — `query` to search keywords, `ls` to see child nodes at a layer, `get` to fetch specific values
+3. **Modify partially last** — `set`/`add`/`del`/`append` only where needed
 
-### Token 节省估算
+### Token Savings Estimate
 
-| 文件大小 | 操作 | 全量读取 | JSONSEEK 输出 | 节省 |
+| File Size | Operation | Full Read | JSONSEEK Output | Savings |
 |---|---|---|---|---|
-| 100KB 配置 JSON | `shape` | ~25K tokens | ~100 tokens | **99%+** |
-| 100KB 配置 JSON | `fields` | ~25K tokens | ~300 tokens | **98%+** |
-| 100KB 配置 JSON | `get` 单值 | ~25K tokens | ~10 tokens | **99%+** |
-| 100KB 配置 JSON | `query` 命中几处 | ~25K tokens | ~100 tokens | **99%+** |
-| 10MB 日志 JSONL | `shape` 采样 | ~2.5M tokens | ~200 tokens | **99.9%+** |
-| 10MB 日志 JSONL | `query` 命中几十条 | ~2.5M tokens | ~1K tokens | **99.9%+** |
+| 100KB config JSON | `shape` | ~25K tokens | ~100 tokens | **99%+** |
+| 100KB config JSON | `fields` | ~25K tokens | ~300 tokens | **98%+** |
+| 100KB config JSON | `get` single value | ~25K tokens | ~10 tokens | **99%+** |
+| 100KB config JSON | `query` hits a few | ~25K tokens | ~100 tokens | **99%+** |
+| 10MB log JSONL | `shape` sampling | ~2.5M tokens | ~200 tokens | **99.9%+** |
+| 10MB log JSONL | `query` hits dozens | ~2.5M tokens | ~1K tokens | **99.9%+** |
 
-> 粗略估算：1 token ≈ 4 字节英文文本。实际比例因内容和 tokenizer 差异会有浮动，但数量级不变——**越大文件的节省越夸张**。
+> Rough estimate: 1 token ≈ 4 bytes of English text. Actual ratios vary by content and tokenizer, but the order of magnitude holds — **the larger the file, the more dramatic the savings**.
 
-**典型 agent 工作流：**
+**Typical agent workflow:**
 
 ```bash
-# Step 1: 理解结构（零内容读取，纯元数据）
-jsonseek shape config.json          # 看到有几层、数组多大
-jsonseek fields config.json         # 看到所有字段名和类型
+# Step 1: Understand structure (zero content read, metadata only)
+jsonseek shape config.json          # See depth, array sizes
+jsonseek fields config.json         # See all field names and types
 
-# Step 2: 定位目标（只读命中部分）
-jsonseek query config.json api_key  # 找到 api_key 在哪
+# Step 2: Locate target (read only matching parts)
+jsonseek query config.json api_key  # Find where api_key is
 jsonseek get config.json services[0].endpoint
 
-# Step 3: 局部修改（只写目标路径）
+# Step 3: Partial modification (write only target path)
 jsonseek set config.json services[0].endpoint "https://new.api.com"
 jsonseek del config.json services[0].deprecated_field
 ```
 
 ---
 
-## 安装
+## Installation
 
 ```bash
 pip install -e .
 jsonseek --version    # JSONSEEK 0.1.0
 ```
 
-要求 Python >= 3.8。跨平台支持 Windows / macOS / Linux。
+Requires Python >= 3.8. Cross-platform support for Windows / macOS / Linux.
 
 ---
 
-## 命令速查（Agent 模式）
+## Command Cheatsheet (Agent Mode)
 
-### 只读命令（安全，不会改文件）
+### Read-Only Commands (Safe, will not modify files)
 
-| 命令 | 用途 | Agent 场景 |
+| Command | Purpose | Agent Scenario |
 |---|---|---|
-| `shape FILE` | 显示 JSON 骨架树 | 第一次看到未知 JSON，快速理解结构 |
-| `fields FILE [KEYWORD]` | 列出所有字段及类型 | 找字段名、看类型分布、过滤关键字 |
-| `ls FILE [PATH]` | 列出某路径下的子节点 | 像 `ls` 目录一样浏览 JSON |
-| `get FILE PATH` | 获取某个路径的值 | 精确读取单个值，避免全量加载 |
-| `query FILE TERM` | 搜索 key 或 value | 找某个配置项在哪 |
-| `extract PATTERN PATH` | 批量提取同路径值 | 从多个配置文件抓同一个字段 |
-| `concat PATTERN` | 多个 JSON 拼成 JSONL | 批量格式转换、数据归集 |
+| `shape FILE` | Display JSON skeleton tree | First look at an unknown JSON, quickly grasp structure |
+| `fields FILE [KEYWORD]` | List all fields and types | Find field names, see type distribution, filter by keyword |
+| `ls FILE [PATH]` | List child nodes at a path | Browse JSON like `ls` on directories |
+| `get FILE PATH` | Get value at a path | Precisely read a single value, avoid full load |
+| `query FILE TERM` | Search keys or values | Find where a config item is |
+| `extract PATTERN PATH` | Batch extract values at same path | Grab the same field from multiple config files |
+| `concat PATTERN` | Merge multiple JSONs into JSONL | Batch format conversion, data aggregation |
 
-### 写命令（会修改文件，建议加 `--backup`）
+### Write Commands (Will modify files, `--backup` recommended)
 
-| 命令 | 用途 | Agent 场景 |
+| Command | Purpose | Agent Scenario |
 |---|---|---|
-| `set FILE PATH VALUE` | 设置值 | 修改配置项、更新 URL、改数值 |
-| `add FILE PATH VALUE` | 给对象加新键 | 新增配置字段 |
-| `del FILE PATH` | 删除键或数组元素 | 清理废弃字段 |
-| `append FILE PATH VALUE` | 往数组追加单个元素（JSON） | 往列表加一个新项 |
-| `extend FILE PATH VALUE` | 往数组批量追加（JSON） | 一次性往列表加多个元素 |
-| `append FILE VALUE` | 追加记录（JSONL） | 往 JSONL 末尾加记录 |
+| `set FILE PATH VALUE` | Set value | Modify config items, update URLs, change numbers |
+| `add FILE PATH VALUE` | Add new key to object | Add new config fields |
+| `del FILE PATH` | Delete key or array element | Clean up deprecated fields |
+| `append FILE PATH VALUE` | Append single element to array (JSON) | Add a new item to a list |
+| `extend FILE PATH VALUE` | Batch append to array (JSON) | Add multiple elements to a list at once |
+| `append FILE VALUE` | Append record (JSONL) | Add a record to end of JSONL |
 
-### 全局选项
+### Global Options
 
-- `--output json` — 机器输出（给下游工具/LLM 解析）
-- `--backup` — 修改前创建 `.bak`
-- `--kind {json,jsonl}` — 强制指定文件类型
+- `--output json` — Machine-readable output (for downstream tools / LLM parsing)
+- `--backup` — Create `.bak` before modification
+- `--kind {json,jsonl}` — Force file type
 
-### Windows PowerShell 引号陷阱与解决方案
+### Windows PowerShell Quoting Pitfalls and Solutions
 
-PowerShell 会吃掉 JSON 字符串里的双引号，导致复杂值传递失败。有两种解决方案：
+PowerShell eats double quotes inside JSON strings, causing complex values to fail. Two solutions:
 
-#### 方案 1：临时文件方法（推荐）
+#### Solution 1: Temp File Method (Recommended)
 
 ```powershell
-# 用 --from-file 代替命令行传值
+# Use --from-file instead of passing value on command line
 echo '{"key": "value"}' > tmp.json
 jsonseek set data.json path --from-file tmp.json
 
-# cutline/replaceline 配合修复错误行
+# cutline/replaceline combo for fixing broken lines
 jsonseek cutline broken.jsonl 5 --save-temp
-# 修改临时文件后
+# After modifying the temp file
 jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
 ```
 
-#### 方案 2：Python API（完全绕过命令行）
+#### Solution 2: Python API (Completely bypass CLI)
 
 ```python
 import sys
@@ -131,58 +131,58 @@ from jsonseek.commands.set_cmd import set_value
 from jsonseek.commands.add_cmd import add_value
 from jsonseek.commands.replaceline_cmd import replace_line
 
-# 直接传 Python 对象，无需转义
+# Pass Python objects directly, no escaping needed
 set_value('data.json', 'path', {"key": "value"})
 add_value('data.json', 'items', ["item1", "item2"])
 replace_line('data.jsonl', 5, '{"id": 5, "fixed": true}')
 ```
 
-在 macOS/Linux bash 或 Windows CMD 中没有引号问题。
+No quoting issues on macOS/Linux bash or Windows CMD.
 
 ---
 
-## 路径语法
+## Path Syntax
 
 ```bash
-# 点号分隔
+# Dot-separated
 jsonseek get data.json meta.settings.timeout
 
-# 方括号键名（支持字符串键）
+# Bracket keys (supports string keys)
 jsonseek get data.json meta[settings][timeout]
 jsonseek get data.json users[0][name]
 
-# 数组索引
+# Array indices
 jsonseek get data.json items[0][1]
 
-# JSONL 记录选择器
+# JSONL record selector
 jsonseek get data.jsonl '[0].name'
 jsonseek get data.jsonl 'records[12].payload.diff'
 jsonseek set data.jsonl '[0].age' 30
 ```
 
-规则：
-- `[数字]` → 数组索引（`[0]`, `[12]`）
-- `[字符串]` → 对象键名（`[name]`, `[key-1]`）
-- 连续方括号直接连用：`a[b][c]`
+Rules:
+- `[number]` → Array index (`[0]`, `[12]`)
+- `[string]` → Object key (`[name]`, `[key-1]`)
+- Consecutive brackets chain directly: `a[b][c]`
 
 ---
 
-## JSON vs JSONL 差异速查
+## JSON vs JSONL Quick Reference
 
 | | JSON | JSONL |
 |---|---|---|
-| 读取 | 一次性加载到内存 | 流式逐行扫描 |
-| `shape` | 完整树 | 采样前 N 条 |
-| `fields` | 统计 count（出现次数） | 统计 coverage（记录覆盖率） |
-| `get`/`ls` | `path` 直接解析 | 路径必须以 `[N].` 或 `records[N].` 开头 |
-| `set`/`add`/`del` | 直接 patch 内存树 | 整文件 rewrite（原子替换） |
-| `append` | 往数组内追加 | 根级追加一条记录 |
+| Reading | Load entire file into memory | Stream line by line |
+| `shape` | Full tree | Sample first N records |
+| `fields` | Count occurrences | Coverage (record coverage rate) |
+| `get`/`ls` | Parse `path` directly | Path must start with `[N].` or `records[N].` |
+| `set`/`add`/`del` | Direct patch in-memory tree | Full file rewrite (atomic replacement) |
+| `append` | Append inside array | Append record at root level |
 
 ---
 
-## Agent 实战示例
+## Agent Practical Examples
 
-### 场景 1：探索未知配置 JSON
+### Scenario 1: Explore Unknown Config JSON
 
 ```bash
 jsonseek shape config.json
@@ -212,7 +212,7 @@ jsonseek get config.json services[2].endpoint
 # https://prod.api.example.com
 ```
 
-### 场景 2：批量修改 JSONL
+### Scenario 2: Batch Modify JSONL
 
 ```bash
 jsonseek shape logs.jsonl
@@ -224,58 +224,58 @@ jsonseek shape logs.jsonl
 jsonseek query logs.jsonl ERROR --max-results 5
 # message  [value] 'connection failed' record=12 line=15
 
-# 把第 12 条记录的 level 改成 warning
+# Change level of record 12 to warning
 jsonseek set logs.jsonl '[12].level' "warning"
 
-# 删除第 100 条记录
+# Delete record 100
 jsonseek del logs.jsonl '[100]'
 
-# 追加新记录
+# Append new record
 jsonseek append logs.jsonl '{"timestamp":"2024-01-01","level":"info","message":"started"}'
 ```
 
-### 场景 3：精确局部修改（避免全量读取）
+### Scenario 3: Precise Partial Modification (Avoid Full Read)
 
 ```bash
-# 不要这样：cat 10MB.json | 塞给 LLM 分析
-# 要这样：
+# Don't do this: cat 10MB.json | feed to LLM for analysis
+# Do this instead:
 jsonseek get large.json data[0].metrics.cpu_usage
 # 42.5
 
 jsonseek set large.json data[0].metrics.cpu_usage 45.0
 ```
 
-### 场景 4：批量提取与数组扩展
+### Scenario 4: Batch Extract and Array Extension
 
 ```bash
-# 从多个实验记录里批量提取同一个字段
+# Batch extract same field from multiple experiment records
 jsonseek extract "experiments/*/metrics.json" training.loss --output json
 # [{"file":"exp1/metrics.json","value":0.12,"ok":true}, ...]
 
-# 往数组一次性追加多个元素（extend 会把数组拆开，逐个追加）
+# Append multiple elements to array at once (extend unpacks array and appends one by one)
 jsonseek extend data.json tags '["urgent", "review"]'
-# 等价于依次 append "urgent" 和 "review"
+# Equivalent to sequentially appending "urgent" and "review"
 ```
 
-### 场景 5：多个 JSON 合并为 JSONL
+### Scenario 5: Merge Multiple JSONs into JSONL
 
 ```bash
-# 把目录下所有 JSON 实验记录转成单条 JSONL
+# Convert all JSON experiment records in directory to single JSONL
 jsonseek concat "experiments/*/result.json" -o combined.jsonl
 # combined.jsonl:
 # {"experiment":"exp1","accuracy":0.95}
 # {"experiment":"exp2","accuracy":0.92}
 
-# 默认按文件名排序；保持原始顺序加 --no-sort
+# Default sorted by filename; add --no-sort to preserve original order
 jsonseek concat "logs/*.json" --no-sort -o logs.jsonl
 ```
 
-### 场景 6：大文件 Debug 与错误修复
+### Scenario 6: Large File Debug and Error Fix
 
-JSON 文件损坏或语法错误时，JSONSEEK 能精确定位问题行，配合临时文件方法实现安全修复：
+When JSON files are corrupted or have syntax errors, JSONSEEK can precisely locate problematic lines, and together with the temp file method enables safe fixes:
 
 ```bash
-# Step 1: 发现错误（自动定位到行）
+# Step 1: Discover errors (auto-locate to line)
 jsonseek shape broken.jsonl
 # Error: Found 2 invalid lines in broken.jsonl:
 #   Line 5: {"id": 5, "broken
@@ -283,64 +283,64 @@ jsonseek shape broken.jsonl
 #   Line 12: {"id": 12, "another}
 #     Error: Unterminated string starting at
 
-# Step 2: 提取问题行到临时文件
+# Step 2: Extract problematic line to temp file
 jsonseek cutline broken.jsonl 5 --save-temp
 # C:\Users\...\tmpXXXX.jsonline
 
-# Step 3: 用 Python 修复临时文件（绕过 PowerShell 引号问题）
+# Step 3: Fix temp file with Python (bypass PowerShell quoting issues)
 python -c "open(r'C:\Users\...\tmpXXXX.jsonline','w',encoding='utf-8').write('{\"id\": 5, \"name\": \"fixed\"}')"
 
-# Step 4: 替换回原文件
+# Step 4: Replace back into original file
 jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
 
-# Step 5: 验证修复
+# Step 5: Verify fix
 jsonseek shape broken.jsonl
 # (root)
 #   id  (integer)
 #   name  (string)
 ```
 
-**Debug 场景 Token 节省对比：**
+**Debug Scenario Token Savings Comparison:**
 
-| 场景 | 传统方式（全量读取） | JSONSEEK 方式 | 节省 |
+| Scenario | Traditional (Full Read) | JSONSEEK Way | Savings |
 |-----|---------------------|---------------|------|
-| 定位 10MB JSONL 中的语法错误 | 读取全量 ~2.5M tokens | shape 输出 ~200 tokens | **99.99%** |
-| 修复损坏 JSONL 的第 5 行 | 读取上下文 + 修改 ~500K tokens | cutline + replaceline ~1K tokens | **99.8%** |
-| 批量修复 N 处错误 | N × 上下文读取 | N × (cutline + replaceline) | **~99%** |
+| Locate syntax error in 10MB JSONL | Read full ~2.5M tokens | shape output ~200 tokens | **99.99%** |
+| Fix line 5 of corrupted JSONL | Read context + modify ~500K tokens | cutline + replaceline ~1K tokens | **99.8%** |
+| Batch fix N errors | N × context reads | N × (cutline + replaceline) | **~99%** |
 
 ---
 
-## 项目结构
+## Project Structure
 
 ```
 src/jsonseek/
-  cli.py            # CLI 入口
-  types.py          # 核心数据类型
-  errors.py         # 异常
-  detect.py         # 文件类型识别
-  formatters.py     # 输出格式化（pretty/json）
-  path_parser.py    # 路径解析（支持 . / [] 混用）
-  value_utils.py    # 类型推断与输入强制转换
-  io/               # 文件 I/O（json, jsonl, rewrite）
-  walkers/          # 树遍历（shape, fields, query）
-  patch/            # Patch 操作（locator, object/array ops）
-  commands/         # 命令处理器
-tests/              # 单元测试（53 个用例）
+  cli.py            # CLI entry point
+  types.py          # Core data types
+  errors.py         # Exceptions
+  detect.py         # File type detection
+  formatters.py     # Output formatting (pretty/json)
+  path_parser.py    # Path parsing (supports . / [] mixed)
+  value_utils.py    # Type inference and input coercion
+  io/               # File I/O (json, jsonl, rewrite)
+  walkers/          # Tree traversal (shape, fields, query)
+  patch/            # Patch operations (locator, object/array ops)
+  commands/         # Command handlers
+tests/              # Unit tests (53 cases)
 ```
 
 ---
 
 ## Roadmap
 
-- [x] JSON 读写与 patch
-- [x] JSONL 流式扫描与 rewrite
-- [x] `--output json` 机器输出
-- [x] Windows / macOS / Linux 跨平台支持
-- [x] 大文件错误定位与修复（cutline/replaceline）
-- [x] Python API 方法（set_value/add_value/del_value）
-- [x] PowerShell 临时文件绕过方案
-- [ ] `--dry-run` 预览修改
-- [ ] Claude Code / Cursor / OpenAI-compatible coding workflows 插件化接入
+- [x] JSON read/write and patch
+- [x] JSONL streaming scan and rewrite
+- [x] `--output json` machine-readable output
+- [x] Windows / macOS / Linux cross-platform support
+- [x] Large file error location and fix (cutline/replaceline)
+- [x] Python API methods (set_value/add_value/del_value)
+- [x] PowerShell temp file bypass solution
+- [ ] `--dry-run` preview modifications
+- [ ] Claude Code / Cursor / OpenAI-compatible coding workflows plugin integration
 
 ---
 

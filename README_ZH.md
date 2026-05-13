@@ -105,36 +105,42 @@ jsonseek --version    # JSONSEEK 0.1.0
 - `--backup` — 修改前创建 `.bak`
 - `--kind {json,jsonl}` — 强制指定文件类型
 
-### Windows PowerShell 引号陷阱与解决方案
+### Windows PowerShell：查询用命令行，写入用 Python API
 
-PowerShell 会吃掉 JSON 字符串里的双引号，导致复杂值传递失败。有两种解决方案：
+在 Windows PowerShell 中，**只读命令**（`shape`、`fields`、`get`、`query`、`ls`、`extract`、`concat`）通过 CLI 运行没有问题。但**写入命令**（`set`、`add`、`del`、`append`、`extend`、`replaceline`）会有问题，因为 PowerShell 会吃掉 JSON 字符串里的双引号，导致复杂值传递失败。
 
-#### 方案 1：临时文件方法（推荐）
+> **Windows 用户建议：** 所有查询/读取操作使用 CLI。所有写入/修改操作使用 Python API。
 
-```powershell
-# 用 --from-file 代替命令行传值
-echo '{"key": "value"}' > tmp.json
-jsonseek set data.json path --from-file tmp.json
-
-# cutline/replaceline 配合修复错误行
-jsonseek cutline broken.jsonl 5 --save-temp
-# 修改临时文件后
-jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
-```
-
-#### 方案 2：Python API（完全绕过命令行）
+#### Python API（Windows 写入操作推荐方式）
 
 ```python
 import sys
 sys.path.insert(0, 'src')
 from jsonseek.commands.set_cmd import set_value
 from jsonseek.commands.add_cmd import add_value
+from jsonseek.commands.del_cmd import del_value
 from jsonseek.commands.replaceline_cmd import replace_line
 
-# 直接传 Python 对象，无需转义
+# Windows 下安全 — 没有命令行引号问题
 set_value('data.json', 'path', {"key": "value"})
 add_value('data.json', 'items', ["item1", "item2"])
+del_value('data.json', 'path')
 replace_line('data.jsonl', 5, '{"id": 5, "fixed": true}')
+```
+
+#### 备选方案：临时文件方法
+
+如果必须在 Windows 下用 CLI 执行写入，使用 `--from-file` 避免在命令行中传递 JSON 字符串：
+
+```powershell
+# set/add 复杂值
+echo '{"key": "value"}' > tmp.json
+jsonseek set data.json path --from-file tmp.json
+
+# cutline/replaceline 修复流程
+jsonseek cutline broken.jsonl 5 --save-temp
+# 修改临时文件后
+jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
 ```
 
 在 macOS/Linux bash 或 Windows CMD 中没有引号问题。

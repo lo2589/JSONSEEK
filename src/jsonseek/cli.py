@@ -20,6 +20,8 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--output", choices=["pretty", "json"], default="pretty", help="Output format")
         p.add_argument("--backup", action="store_true", default=False, help="Create .bak backup before writing")
         p.add_argument("--encoding", default=None, help="File encoding (auto-detect by default)")
+        p.add_argument("--dry-run", action="store_true", default=False, help="Preview changes without applying")
+        p.add_argument("--context", type=int, default=2, help="Lines of context around target line (JSONL only)")
 
     # shape
     shape_p = sub.add_parser("shape", help="Show structure/shape of the file")

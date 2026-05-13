@@ -32,6 +32,28 @@ def _format_json_error(path: str, e: json.JSONDecodeError, encoding: str) -> str
     return msg
 
 
+def _format_encoding_error(path: str, e: Exception, detected: str) -> str:
+    """Format an encoding/decoding error with context."""
+    msg = f"Encoding error in {path}\n"
+    msg += f"  Detected encoding: {detected}\n"
+    msg += f"  Error: {e}\n"
+    msg += f"  Hint: Try specifying the correct encoding with --encoding (e.g. --encoding gbk)\n"
+    
+    # Try to show raw byte preview around the error position
+    try:
+        with open(path, "rb") as f:
+            raw = f.read(200)
+        # Show hex dump of first 200 bytes
+        hex_preview = raw[:64].hex(' ')
+        msg += f"  Raw bytes (hex): {hex_preview}"
+        if len(raw) > 64:
+            msg += " ..."
+    except Exception:
+        pass
+    
+    return msg
+
+
 def load_json_file(path: str, encoding: Optional[str] = None) -> Any:
     """Load a JSON file and return the Python tree.
 
@@ -43,6 +65,8 @@ def load_json_file(path: str, encoding: Optional[str] = None) -> Any:
             return json.load(f)
     except FileNotFoundError:
         raise JsonseekError(f"File not found: {path}")
+    except (UnicodeDecodeError, UnicodeError) as e:
+        raise JsonseekError(_format_encoding_error(path, e, detected))
     except json.JSONDecodeError as e:
         raise JsonseekError(_format_json_error(path, e, detected))
 

@@ -119,33 +119,15 @@ jsonseek concat "data/*.json" --no-sort -o output.jsonl
 - `append` for JSON requires `path value` (array path + value).
 - `append` for JSONL only needs `value` (root-level record append).
 
-## PowerShell Limitation & Workaround
+## Windows Users: Query via CLI, Write via Python API
 
-On Windows PowerShell, passing JSON strings with quotes via command line is problematic - quotes get stripped by the shell parser.
+On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`, `ls`, `extract`, `concat`) work fine via CLI. However, **write commands** (`set`, `add`, `del`, `append`, `extend`, `replaceline`) are problematic because PowerShell strips double quotes from JSON strings, causing complex values to fail.
 
-### Workaround: Temp File Method
+> **Recommendation for Windows:** Use CLI for all read/query operations. Use Python API for all write/modify operations.
 
-For complex values (JSON objects/arrays), use the temp file approach:
+### Python API (Recommended for Writes on Windows)
 
-```bash
-# 1. Error shows problematic line
-jsonseek shape broken.jsonl
-# Error: Line 2: {"id": 2, "broken}
-
-# 2. Extract line to temp file
-jsonseek cutline broken.jsonl 2 --save-temp
-# C:\Users\...\tmpXXXX.jsonline
-
-# 3. LLM edits the temp file, then:
-python -c "open('C:\\Users\\...\\tmpXXXX.jsonline','w',encoding='utf-8').write('{\"id\": 2, \"name\": \"fixed\"}')"
-
-# 4. Replace the line
-jsonseek replaceline broken.jsonl 2 --from-file C:\Users\...\tmpXXXX.jsonline
-```
-
-### Python API Method (Recommended for Complex Values)
-
-Import directly in Python scripts to bypass shell quoting issues:
+Import directly in Python scripts to bypass shell quoting issues completely:
 
 ```python
 import sys
@@ -156,7 +138,7 @@ from jsonseek.commands.add_cmd import add_value
 from jsonseek.commands.del_cmd import del_value
 from jsonseek.commands.replaceline_cmd import replace_line
 
-# Set/Add complex values
+# Set/Add complex values — no shell quoting issues
 set_value('file.json', 'path', {"key": "value"})
 add_value('file.json', 'path', ["item1", "item2"])
 
@@ -167,17 +149,20 @@ del_value('file.json', 'path')
 replace_line('file.jsonl', 5, '{"id": 5, "name": "fixed"}')
 ```
 
-### Command Reference with --from-file
+### Fallback: Temp File Method
 
-For `set`, `add`, `replaceline`, use `--from-file` instead of passing value on command line:
+If you must use CLI for writes on Windows, use `--from-file` to avoid passing JSON strings on the command line:
 
 ```bash
-# Instead of (fails with complex values):
-jsonseek set file.json path '{"key": "value"}'
-
-# Use:
+# For set/add with complex values
 echo '{"key": "value"}' > tmp.json
 jsonseek set file.json path --from-file tmp.json
+
+# For cutline/replaceline workflow
+jsonseek cutline broken.jsonl 2 --save-temp
+# C:\Users\...\tmpXXXX.jsonline
+# Edit the temp file, then:
+jsonseek replaceline broken.jsonl 2 --from-file C:\Users\...\tmpXXXX.jsonline
 ```
 
 ## References

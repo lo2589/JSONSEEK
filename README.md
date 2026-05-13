@@ -105,36 +105,42 @@ Requires Python >= 3.8. Cross-platform support for Windows / macOS / Linux.
 - `--backup` — Create `.bak` before modification
 - `--kind {json,jsonl}` — Force file type
 
-### Windows PowerShell Quoting Pitfalls and Solutions
+### Windows PowerShell: Query via CLI, Write via Python API
 
-PowerShell eats double quotes inside JSON strings, causing complex values to fail. Two solutions:
+On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`, `ls`, `extract`, `concat`) work fine via CLI. However, **write commands** (`set`, `add`, `del`, `append`, `extend`, `replaceline`) are problematic because PowerShell strips double quotes from JSON strings, causing complex values to fail.
 
-#### Solution 1: Temp File Method (Recommended)
+> **Recommendation for Windows:** Use CLI for all read/query operations. Use Python API for all write/modify operations.
 
-```powershell
-# Use --from-file instead of passing value on command line
-echo '{"key": "value"}' > tmp.json
-jsonseek set data.json path --from-file tmp.json
-
-# cutline/replaceline combo for fixing broken lines
-jsonseek cutline broken.jsonl 5 --save-temp
-# After modifying the temp file
-jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
-```
-
-#### Solution 2: Python API (Completely bypass CLI)
+#### Python API (Recommended for Writes on Windows)
 
 ```python
 import sys
 sys.path.insert(0, 'src')
 from jsonseek.commands.set_cmd import set_value
 from jsonseek.commands.add_cmd import add_value
+from jsonseek.commands.del_cmd import del_value
 from jsonseek.commands.replaceline_cmd import replace_line
 
-# Pass Python objects directly, no escaping needed
+# Safe on Windows — no shell quoting issues
 set_value('data.json', 'path', {"key": "value"})
 add_value('data.json', 'items', ["item1", "item2"])
+del_value('data.json', 'path')
 replace_line('data.jsonl', 5, '{"id": 5, "fixed": true}')
+```
+
+#### Fallback: Temp File Method
+
+If you must use CLI for writes on Windows, use `--from-file` to avoid passing JSON strings on the command line:
+
+```powershell
+# For set/add with complex values
+echo '{"key": "value"}' > tmp.json
+jsonseek set data.json path --from-file tmp.json
+
+# For cutline/replaceline workflow
+jsonseek cutline broken.jsonl 5 --save-temp
+# Edit the temp file, then:
+jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
 ```
 
 No quoting issues on macOS/Linux bash or Windows CMD.

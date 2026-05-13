@@ -4,6 +4,7 @@ from typing import Any, Iterator, List, Optional, Tuple
 from ..types import JsonlRecord
 from ..errors import JsonseekError
 from .encoding import resolve_encoding
+from .json_file import _format_encoding_error
 
 
 def _get_line_content(path: str, line_number: int, encoding: str) -> str:
@@ -46,6 +47,8 @@ def iter_jsonl_records(path: str, encoding: Optional[str] = None, collect_errors
                 record_index += 1
     except FileNotFoundError:
         raise JsonseekError(f"File not found: {path}")
+    except (UnicodeDecodeError, UnicodeError) as e:
+        raise JsonseekError(_format_encoding_error(path, e, detected))
     except OSError as e:
         raise JsonseekError(f"Failed to read {path}: {e}")
     
@@ -84,6 +87,8 @@ def get_all_jsonl_errors(path: str, encoding: Optional[str] = None) -> List[Tupl
                     json.loads(stripped)
                 except json.JSONDecodeError as e:
                     errors.append((line_number, stripped, e.msg))
+    except (UnicodeDecodeError, UnicodeError) as e:
+        raise JsonseekError(_format_encoding_error(path, e, detected))
     except Exception:
         pass
     return errors
@@ -112,6 +117,30 @@ def get_jsonl_record_by_index(path: str, record_index: int, encoding: Optional[s
         if record.record_index == record_index:
             return record
     raise JsonseekError(f"Record index {record_index} not found in {path}")
+
+
+def get_line_context(path: str, target_line: int, context: int = 2, encoding: Optional[str] = None) -> List[Tuple[int, str]]:
+    """Return lines around target_line with context. 1-indexed.
+    
+    Returns list of (line_number, content) tuples.
+    """
+    detected = resolve_encoding(path, encoding)
+    start = max(1, target_line - context)
+    end = target_line + context
+    result: List[Tuple[int, str]] = []
+    try:
+        with open(path, "r", encoding=detected) as f:
+            for i, line in enumerate(f, 1):
+                if i < start:
+                    continue
+                if i > end:
+                    break
+                result.append((i, line.rstrip('\n\r')))
+    except FileNotFoundError:
+        raise JsonseekError(f"File not found: {path}")
+    except OSError as e:
+        raise JsonseekError(f"Failed to read {path}: {e}")
+    return result
 
 
 def append_jsonl_record(path: str, value: Any, encoding: str = "utf-8") -> None:

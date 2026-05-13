@@ -75,9 +75,6 @@ def _looks_like_utf8(text: str) -> bool:
         return True
     return (suspicious / len(text)) <= 0.1
 
-    # Fallback
-    return "utf-8"
-
 
 def resolve_encoding(path: str, encoding: Optional[str] = None) -> str:
     """Resolve final encoding: use explicit if given, else auto-detect."""

@@ -4,46 +4,82 @@ import argparse
 from ..detect import detect_file_kind
 from ..io.json_file import load_json_file, save_json_file
 from ..io.rewrite import rewrite_jsonl_file
-from ..path_parser import parse_path
-from ..patch.locator import resolve_parent_and_key, resolve_record_and_inner_path
+from ..io.jsonl_file import get_jsonl_record_by_index, get_line_context
+from ..path_parser import parse_path, normalize_path
+from ..patch.locator import resolve_parent_and_key, resolve_record_and_inner_path, resolve_value_at_path
 from ..patch.object_ops import apply_del_from_object
 from ..patch.array_ops import apply_del_from_array
-from ..formatters import format_patch_result
-from ..errors import JsonseekError, PatchError
+from ..formatters import format_patch_preview
+from ..errors import JsonseekError, PatchError, PathError
 from ..types import KeyToken, IndexToken
 
 
 def handle_del(args: argparse.Namespace) -> int:
     try:
-        # Confirm before delete if not -y
-        if not getattr(args, "yes", False):
-            import sys
-            path = args.file
-            path_display = path
-            response = input(f"Delete '{args.path}' in {path_display}? [y/N]: ")
+        is_dry_run = getattr(args, "dry_run", False)
+        output = getattr(args, "output", "pretty")
+        enc = getattr(args, "encoding", None)
+        context = getattr(args, "context", 2)
+
+        # Confirm before delete if not -y and not dry-run
+        if not is_dry_run and not getattr(args, "yes", False):
+            response = input(f"Delete '{args.path}' in {args.file}? [y/N]: ")
             if response.lower() != 'y':
                 print("Cancelled")
                 return 1
-        
+
         kind = detect_file_kind(args.file, kind_hint=getattr(args, "kind", None))
-        enc = getattr(args, "encoding", None)
+
         if kind == "jsonl":
-            # Determine if deleting whole record or inner field
-            try:
-                record_index, inner_tokens = resolve_record_and_inner_path(args.path)
-                has_inner = bool(inner_tokens)
-            except JsonseekError:
-                # Maybe it's just [N] without inner path? resolve_record_and_inner_path handles that
-                raise
+            record_index, inner_tokens = resolve_record_and_inner_path(args.path)
+            has_inner = bool(inner_tokens)
+            record = get_jsonl_record_by_index(args.file, record_index, encoding=enc)
+            target_line = record.line_number
+            before_context = get_line_context(args.file, target_line, context=context, encoding=enc)
+
             if not has_inner:
                 # Delete whole record
+                if is_dry_run:
+                    print(format_patch_preview(
+                        path=args.path,
+                        output=output,
+                        dry_run=True,
+                        jsonl_before=before_context,
+                        jsonl_target_line=target_line,
+                        operation="deleted",
+                    ))
+                    return 0
+
                 rewrite_jsonl_file(
                     args.file,
                     transform_record=lambda rec: (rec.record_index != record_index, rec.data),
                     backup=getattr(args, "backup", False),
                     encoding=enc,
                 )
+
+                after_context = get_line_context(args.file, target_line, context=context, encoding=enc)
+                print(format_patch_preview(
+                    path=args.path,
+                    output=output,
+                    dry_run=False,
+                    jsonl_before=before_context,
+                    jsonl_after=after_context,
+                    jsonl_target_line=target_line,
+                    operation="deleted",
+                ))
             else:
+                # Delete inner field
+                if is_dry_run:
+                    print(format_patch_preview(
+                        path=args.path,
+                        output=output,
+                        dry_run=True,
+                        jsonl_before=before_context,
+                        jsonl_target_line=target_line,
+                        operation="modified",
+                    ))
+                    return 0
+
                 rewrite_jsonl_file(
                     args.file,
                     transform_record=lambda rec: patch_jsonl_record_del(
@@ -52,11 +88,49 @@ def handle_del(args: argparse.Namespace) -> int:
                     backup=getattr(args, "backup", False),
                     encoding=enc,
                 )
+
+                after_context = get_line_context(args.file, target_line, context=context, encoding=enc)
+                print(format_patch_preview(
+                    path=args.path,
+                    output=output,
+                    dry_run=False,
+                    jsonl_before=before_context,
+                    jsonl_after=after_context,
+                    jsonl_target_line=target_line,
+                    operation="modified",
+                ))
         else:
             data = load_json_file(args.file, encoding=enc)
+            try:
+                before_value = resolve_value_at_path(data, parse_path(args.path))
+            except PathError:
+                before_value = "<not found>"
+
+            # Compute parent path for after display
+            tokens = parse_path(args.path)
+            parent_tokens = tokens[:-1]
+            parent_path = normalize_path(parent_tokens) if parent_tokens else "<root>"
+
+            if is_dry_run:
+                print(format_patch_preview(
+                    path=args.path,
+                    before=before_value,
+                    after=f"<deleted> (parent: {parent_path})",
+                    output=output,
+                    dry_run=True,
+                ))
+                return 0
+
             patched = patch_json_del(data, args.path)
             save_json_file(args.file, patched, backup=getattr(args, "backup", False), encoding=enc or "utf-8")
-        print(format_patch_result(f"Deleted {args.path}", output=getattr(args, "output", "pretty")))
+
+            print(format_patch_preview(
+                path=args.path,
+                before=before_value,
+                after=f"<deleted> (parent: {parent_path})",
+                output=output,
+                dry_run=False,
+            ))
         return 0
     except (JsonseekError, PatchError) as e:
         print(f"Error: {e}", file=__import__("sys").stderr)

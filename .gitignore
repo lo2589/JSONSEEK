@@ -26,3 +26,6 @@ Thumbs.db
 *.tmp
 tests/data/*.bak
 v.txt
+
+# Local todo
+todo.json

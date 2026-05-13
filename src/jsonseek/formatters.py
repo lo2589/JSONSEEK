@@ -1,5 +1,5 @@
 import json
-from typing import Any, List
+from typing import Any, List, Optional, Tuple
 
 from .types import ShapeNode, FieldStat, QueryHit
 from .value_utils import short_preview, stable_type_name
@@ -152,3 +152,109 @@ def format_patch_result(message: str, output: str = "pretty") -> str:
     if output == "json":
         return json.dumps({"ok": True, "message": message}, ensure_ascii=False)
     return message
+
+
+def _value_repr(value: Any) -> str:
+    """Return a compact string representation of a value."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        preview = json.dumps(value, ensure_ascii=False)
+        if len(preview) > 200:
+            preview = preview[:197] + "..."
+        return preview
+    if isinstance(value, str):
+        return repr(value)
+    return str(value)
+
+
+def format_patch_preview(
+    path: str,
+    before: Any = None,
+    after: Any = None,
+    output: str = "pretty",
+    dry_run: bool = False,
+    jsonl_before: Optional[List[Tuple[int, str]]] = None,
+    jsonl_after: Optional[List[Tuple[int, str]]] = None,
+    jsonl_target_line: Optional[int] = None,
+    operation: str = "modified",
+) -> str:
+    """Format before/after preview for patch commands.
+    
+    Args:
+        path: Target path being modified.
+        before: Original value (for JSON).
+        after: New value (for JSON).
+        output: "pretty" or "json".
+        dry_run: Whether this is a dry-run preview.
+        jsonl_before: List of (line_num, content) for JSONL before view.
+        jsonl_after: List of (line_num, content) for JSONL after view.
+        jsonl_target_line: The line number being operated on (for JSONL).
+        operation: "modified", "deleted", "added", or "appended".
+    """
+    if output == "json":
+        result: dict = {
+            "ok": True,
+            "dry_run": dry_run,
+            "path": path,
+        }
+        if jsonl_before is not None:
+            result["jsonl_before"] = jsonl_before
+            result["jsonl_after"] = jsonl_after
+            result["target_line"] = jsonl_target_line
+        else:
+            result["before"] = before if before is not None else None
+            result["after"] = after if after is not None else None
+        return json.dumps(result, ensure_ascii=False, default=str)
+
+    # Pretty output
+    lines: List[str] = []
+    prefix = "[DRY-RUN] " if dry_run else ""
+
+    if jsonl_before is not None:
+        # JSONL context mode
+        if operation == "modified":
+            tag_before = " [TO BE MODIFIED]"
+            tag_after = " [MODIFIED]"
+        elif operation == "deleted":
+            tag_before = " [TO BE DELETED]"
+            tag_after = ""
+        elif operation == "appended":
+            tag_before = ""
+            tag_after = " [APPENDED]"
+        else:
+            tag_before = ""
+            tag_after = ""
+
+        lines.append(f"{prefix}Before:")
+        for num, content in jsonl_before:
+            marker = ">>>" if num == jsonl_target_line else "   "
+            tag = tag_before if num == jsonl_target_line else ""
+            lines.append(f"{marker}{num}: {content}{tag}")
+
+        if jsonl_after is not None:
+            lines.append("")
+            lines.append(f"{prefix}After:")
+            for num, content in jsonl_after:
+                if operation == "deleted":
+                    # Deleted: no target marker, lines just shift up
+                    marker = "   "
+                    tag = ""
+                else:
+                    marker = ">>>" if num == jsonl_target_line else "   "
+                    tag = tag_after if num == jsonl_target_line else ""
+                lines.append(f"{marker}{num}: {content}{tag}")
+    else:
+        # JSON value mode
+        before_str = _value_repr(before) if before is not None else "<not found>"
+        after_str = _value_repr(after) if after is not None else "<not found>"
+        lines.append(f"{prefix}Before: {path} = {before_str}")
+        lines.append(f"{prefix}After:  {path} = {after_str}")
+
+    if dry_run:
+        lines.append("")
+        lines.append("(Dry run, no changes made)")
+
+    return "\n".join(lines)

@@ -125,6 +125,34 @@ On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`
 
 > **Recommendation for Windows:** Use CLI for all read/query operations. Use Python API for all write/modify operations.
 
+### Chinese / UTF-8 Output on Windows
+
+For read-only CLI commands that print Chinese text, set Python and PowerShell
+output encoding to UTF-8 before running jsonseek:
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+```
+
+This helps with display output such as:
+
+```powershell
+python -m jsonseek.cli get file.json path
+python -m jsonseek.cli query file.json keyword
+```
+
+It does **not** make shell-passed JSON strings safe for writes. This is still
+unsafe on Windows:
+
+```powershell
+python -m jsonseek.cli set file.json path '{"content":"中文"}'
+```
+
+For Chinese or complex JSON writes, use the Python API or `--from-file`, not
+PowerShell command arguments.
+
 ### Python API (Recommended for Writes on Windows)
 
 Import directly in Python scripts to bypass shell quoting issues completely:
@@ -135,12 +163,16 @@ sys.path.insert(0, 'src')
 
 from jsonseek.commands.set_cmd import set_value
 from jsonseek.commands.add_cmd import add_value
+from jsonseek.commands.append_cmd import append_value
+from jsonseek.commands.extend_cmd import extend_value
 from jsonseek.commands.del_cmd import del_value
 from jsonseek.commands.replaceline_cmd import replace_line
 
-# Set/Add complex values — no shell quoting issues
+# Set/Add/Append/Extend complex values - no shell quoting issues
 set_value('file.json', 'path', {"key": "value"})
 add_value('file.json', 'path', ["item1", "item2"])
+append_value('file.json', 'items', {"id": 1})
+extend_value('file.json', 'items', [{"id": 2}, {"id": 3}])
 
 # Delete
 del_value('file.json', 'path')
@@ -148,6 +180,9 @@ del_value('file.json', 'path')
 # Replace line in file
 replace_line('file.jsonl', 5, '{"id": 5, "name": "fixed"}')
 ```
+
+CLI write commands print a patch preview on success and `Error: ...` on failure.
+Python API write helpers are quiet on success and raise an exception on failure.
 
 ### Fallback: Temp File Method
 

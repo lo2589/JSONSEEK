@@ -68,3 +68,13 @@ def patch_json_extend(data: Any, target_path: str, values: list) -> Any:
         raise PatchError(f"Expected array at {target_path}, got {type(arr).__name__}")
     arr.extend(values)
     return data
+
+
+def extend_value(path: str, target_path: str, values: list, encoding: str = "utf-8") -> None:
+    """Extend an array in a JSON file. Python API version."""
+    if not isinstance(values, list):
+        raise PatchError(f"extend value must be a list, got {type(values).__name__}")
+    from ..io.json_file import load_json_file, save_json_file
+    data = load_json_file(path, encoding=encoding)
+    patched = patch_json_extend(data, target_path, values)
+    save_json_file(path, patched, backup=False, encoding=encoding)

@@ -78,14 +78,27 @@ def dump_json_data(data: Any, pretty: bool = True) -> str:
     return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
 
 
-def _atomic_replace(src: str, dst: str) -> None:
+def _atomic_replace(src: str, dst: str, encoding: str = "utf-8") -> None:
     """Cross-platform atomic file replace."""
     try:
         os.replace(src, dst)
     except PermissionError:
         if os.name == "nt" and os.path.exists(dst):
-            os.remove(dst)
-            os.rename(src, dst)
+            try:
+                os.remove(dst)
+                os.rename(src, dst)
+            except PermissionError:
+                # Some Windows environments deny replace/delete while still
+                # allowing normal writes to the destination. Fall back to a
+                # non-atomic in-place rewrite so jsonseek remains usable.
+                with open(src, "r", encoding=encoding) as fsrc:
+                    content = fsrc.read()
+                with open(dst, "w", encoding=encoding, newline="\n") as fdst:
+                    fdst.write(content)
+                try:
+                    os.remove(src)
+                except OSError:
+                    pass
         else:
             raise
 
@@ -102,7 +115,7 @@ def save_json_file(path: str, data: Any, backup: bool = False, encoding: str = "
         with open(temp_path, "w", encoding=encoding, newline="\n") as f:
             f.write(content)
             f.write("\n")
-        _atomic_replace(temp_path, path)
+        _atomic_replace(temp_path, path, encoding=encoding)
     except OSError as e:
         if os.path.exists(temp_path):
             os.remove(temp_path)

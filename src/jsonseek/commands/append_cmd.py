@@ -106,3 +106,11 @@ def patch_json_append(data: Any, target_path: str, value: Any) -> Any:
         raise PatchError(f"Expected array at {target_path}, got {type(arr).__name__}")
     apply_append_to_array(arr, value)
     return data
+
+
+def append_value(path: str, target_path: str, value: Any, encoding: str = "utf-8") -> None:
+    """Append a value to an array in a JSON file. Python API version."""
+    from ..io.json_file import load_json_file, save_json_file
+    data = load_json_file(path, encoding=encoding)
+    patched = patch_json_append(data, target_path, value)
+    save_json_file(path, patched, backup=False, encoding=encoding)

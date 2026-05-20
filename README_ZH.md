@@ -6,7 +6,7 @@
 >
 > 支持 JSON + JSONL 的结构理解、字段简表、局部查询和局部修改。
 >
-> 支持 JSON + JSONL 的bug查找和局部修改。
+> 支持 JSON + JSONL 的 bug 查找和局部修复。
 ---
 
 ## JSON 为什么值得专门做一个工具
@@ -74,12 +74,27 @@ jsonseek --version    # JSONSEEK 0.1.0
 
 ---
 
+## 全局选项
+
+以下选项适用于绝大多数命令：
+
+| 选项 | 说明 |
+|------|------|
+| `--output {pretty,json}` | 输出格式，`json` 为机器可读 |
+| `--backup` | 修改前创建 `.bak` 备份 |
+| `--dry-run` | 预览修改，不实际写入 |
+| `--kind {json,jsonl}` | 强制指定文件类型（默认自动检测） |
+| `--encoding ENCODING` | 强制指定编码（默认自动检测） |
+| `--context N` | JSONL 预览时显示目标行上下 N 行（默认 2） |
+
+---
+
 ## 命令速查（Agent 模式）
 
 ### 只读命令（安全，不会改文件）
 
 | 命令 | 用途 | Agent 场景 |
-|---|---|---|
+|------|------|-----------|
 | `shape FILE` | 显示 JSON 骨架树 | 第一次看到未知 JSON，快速理解结构 |
 | `fields FILE [KEYWORD]` | 列出所有字段及类型 | 找字段名、看类型分布、过滤关键字 |
 | `ls FILE [PATH]` | 列出某路径下的子节点 | 像 `ls` 目录一样浏览 JSON |
@@ -91,7 +106,7 @@ jsonseek --version    # JSONSEEK 0.1.0
 ### 写命令（会修改文件，建议加 `--backup`）
 
 | 命令 | 用途 | Agent 场景 |
-|---|---|---|
+|------|------|-----------|
 | `set FILE PATH VALUE` | 设置值 | 修改配置项、更新 URL、改数值 |
 | `add FILE PATH VALUE` | 给对象加新键 | 新增配置字段 |
 | `del FILE PATH` | 删除键或数组元素 | 清理废弃字段 |
@@ -99,51 +114,195 @@ jsonseek --version    # JSONSEEK 0.1.0
 | `extend FILE PATH VALUE` | 往数组批量追加（JSON） | 一次性往列表加多个元素 |
 | `append FILE VALUE` | 追加记录（JSONL） | 往 JSONL 末尾加记录 |
 
-### 全局选项
+### 修复命令
 
-- `--output json` — 机器输出（给下游工具/LLM 解析）
-- `--backup` — 修改前创建 `.bak`
-- `--kind {json,jsonl}` — 强制指定文件类型
+| 命令 | 用途 |
+|------|------|
+| `cutline FILE LINE` | 提取指定行到 stdout 或临时文件 |
+| `replaceline FILE LINE [CONTENT]` | 替换指定行内容 |
 
-### Windows PowerShell：查询用命令行，写入用 Python API
+---
 
-在 Windows PowerShell 中，**只读命令**（`shape`、`fields`、`get`、`query`、`ls`、`extract`、`concat`）通过 CLI 运行没有问题。但**写入命令**（`set`、`add`、`del`、`append`、`extend`、`replaceline`）会有问题，因为 PowerShell 会吃掉 JSON 字符串里的双引号，导致复杂值传递失败。
+## 各命令参数详解
 
-> **Windows 用户建议：** 所有查询/读取操作使用 CLI。所有写入/修改操作使用 Python API。
+### `shape`
 
-#### Python API（Windows 写入操作推荐方式）
-
-```python
-import sys
-sys.path.insert(0, 'src')
-from jsonseek.commands.set_cmd import set_value
-from jsonseek.commands.add_cmd import add_value
-from jsonseek.commands.del_cmd import del_value
-from jsonseek.commands.replaceline_cmd import replace_line
-
-# Windows 下安全 — 没有命令行引号问题
-set_value('data.json', 'path', {"key": "value"})
-add_value('data.json', 'items', ["item1", "item2"])
-del_value('data.json', 'path')
-replace_line('data.jsonl', 5, '{"id": 5, "fixed": true}')
+```bash
+jsonseek shape FILE [--max-depth N] [--array-mode {sample,full}] [--sample-size N]
 ```
 
-#### 备选方案：临时文件方法
+| 参数 | 说明 |
+|------|------|
+| `--max-depth N` | 最大遍历深度 |
+| `--array-mode {sample,full}` | 数组遍历模式，`sample` 采样（默认），`full` 全量 |
+| `--sample-size N` | JSONL 采样记录数（默认 100） |
 
-如果必须在 Windows 下用 CLI 执行写入，使用 `--from-file` 避免在命令行中传递 JSON 字符串：
+### `fields`
 
-```powershell
-# set/add 复杂值
-echo '{"key": "value"}' > tmp.json
-jsonseek set data.json path --from-file tmp.json
-
-# cutline/replaceline 修复流程
-jsonseek cutline broken.jsonl 5 --save-temp
-# 修改临时文件后
-jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
+```bash
+jsonseek fields FILE [KEYWORD] [--top]
 ```
 
-在 macOS/Linux bash 或 Windows CMD 中没有引号问题。
+| 参数 | 说明 |
+|------|------|
+| `KEYWORD` | 可选，过滤字段名 |
+| `--top` | 只显示顶层字段 |
+
+### `ls`
+
+```bash
+jsonseek ls FILE [PATH]
+```
+
+### `get`
+
+```bash
+jsonseek get FILE PATH
+```
+
+### `query`
+
+```bash
+jsonseek query FILE TERM [--case-sensitive] [--exact] [--match-mode {key,value,both}] [--max-results N] [--record-id-field FIELD] [--preview-field FIELD]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--case-sensitive` | 大小写敏感匹配 |
+| `--exact` | 精确匹配（默认子串匹配） |
+| `--match-mode {key,value,both}` | 匹配 key、value 或两者（默认 both） |
+| `--max-results N` | 限制返回结果数 |
+| `--record-id-field FIELD` | JSONL 输出时用该字段作为记录标识 |
+| `--preview-field FIELD` | JSONL 输出时额外显示该字段的预览 |
+
+### `set`
+
+```bash
+jsonseek set FILE PATH VALUE [--create-missing] [--from-file FILE]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--create-missing` | 自动创建缺失的中间路径 |
+| `--from-file FILE` | 从文件读取 value（避免命令行引号问题） |
+
+### `add`
+
+```bash
+jsonseek add FILE PATH VALUE [--create-missing] [--from-file FILE]
+```
+
+参数同 `set`。
+
+### `del`
+
+```bash
+jsonseek del FILE PATH [-y]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `-y`, `--yes` | 跳过删除确认 |
+
+### `append`
+
+```bash
+# JSON：往数组追加
+jsonseek append FILE ARRAY_PATH VALUE
+
+# JSONL：根级追加记录
+jsonseek append FILE VALUE
+```
+
+### `extend`
+
+```bash
+jsonseek extend FILE ARRAY_PATH JSON_ARRAY
+```
+
+### `extract`
+
+```bash
+jsonseek extract PATTERN PATH [--include-missing] [--output {pretty,json}]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--include-missing` | 包含路径不存在的文件（默认跳过） |
+
+### `concat`
+
+```bash
+jsonseek concat PATTERN [-o OUTPUT] [--no-sort]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `-o, --output-file OUTPUT` | 输出文件（默认 stdout） |
+| `--no-sort` | 保持 glob 原始顺序（默认按文件名排序） |
+
+### `cutline`
+
+```bash
+jsonseek cutline FILE LINE [--save-temp]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--save-temp` | 保存到临时文件并返回路径 |
+
+### `replaceline`
+
+```bash
+jsonseek replaceline FILE LINE [CONTENT] [--from-file FILE]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--from-file FILE` | 从文件读取替换内容 |
+
+---
+
+## `--dry-run` 预览修改
+
+所有写命令支持 `--dry-run` 预览修改效果，确认无误再执行。
+
+**JSON 预览：**
+
+```bash
+$ jsonseek set config.json services[2].endpoint "https://new.api.com" --dry-run
+[DRY-RUN] Before: services[2].endpoint = "https://old.api.com"
+[DRY-RUN] After:  services[2].endpoint = "https://new.api.com"
+(Dry run, no changes made)
+```
+
+**JSONL 预览（带行号上下文）：**
+
+```bash
+$ jsonseek set logs.jsonl '[15].level' "WARNING" --dry-run
+[DRY-RUN] Before:
+>>>15: {"level":"ERROR","msg":"connection failed"} [TO BE MODIFIED]
+   14: {"level":"INFO","msg":"ok"}
+
+[DRY-RUN] After:
+>>>15: {"level":"WARNING","msg":"connection failed"} [MODIFIED]
+   14: {"level":"INFO","msg":"ok"}
+(Dry run, no changes made)
+```
+
+**机器可读输出（`--output json`）：**
+
+```bash
+$ jsonseek set config.json services[2].endpoint "https://new.api.com" \
+    --dry-run --output json
+{"ok":true,"dry_run":true,"path":"services[2].endpoint",
+ "before":"https://old.api.com","after":"https://new.api.com"}
+```
+
+操作标签说明：
+- `[TO BE MODIFIED]` / `[MODIFIED]`
+- `[TO BE DELETED]` / （删除后该行不显示）
+- `[APPENDED]`
 
 ---
 
@@ -316,6 +475,48 @@ jsonseek shape broken.jsonl
 
 ---
 
+## Windows PowerShell：查询用命令行，写入用 Python API
+
+在 Windows PowerShell 中，**只读命令**（`shape`、`fields`、`get`、`query`、`ls`、`extract`、`concat`）通过 CLI 运行没有问题。但**写入命令**（`set`、`add`、`del`、`append`、`extend`、`replaceline`）会有问题，因为 PowerShell 会吃掉 JSON 字符串里的双引号，导致复杂值传递失败。
+
+> **Windows 用户建议：** 所有查询/读取操作使用 CLI。所有写入/修改操作使用 Python API。
+
+### Python API（Windows 写入操作推荐方式）
+
+```python
+import sys
+sys.path.insert(0, 'src')
+from jsonseek.commands.set_cmd import set_value
+from jsonseek.commands.add_cmd import add_value
+from jsonseek.commands.del_cmd import del_value
+from jsonseek.commands.replaceline_cmd import replace_line
+
+# Windows 下安全 — 没有命令行引号问题
+set_value('data.json', 'path', {"key": "value"})
+add_value('data.json', 'items', ["item1", "item2"])
+del_value('data.json', 'path')
+replace_line('data.jsonl', 5, '{"id": 5, "fixed": true}')
+```
+
+### 备选方案：临时文件方法
+
+如果必须在 Windows 下用 CLI 执行写入，使用 `--from-file` 避免在命令行中传递 JSON 字符串：
+
+```powershell
+# set/add 复杂值
+echo '{"key": "value"}' > tmp.json
+jsonseek set data.json path --from-file tmp.json
+
+# cutline/replaceline 修复流程
+jsonseek cutline broken.jsonl 5 --save-temp
+# 修改临时文件后
+jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
+```
+
+在 macOS/Linux bash 或 Windows CMD 中没有引号问题。
+
+---
+
 ## 项目结构
 
 ```
@@ -324,13 +525,13 @@ src/jsonseek/
   types.py          # 核心数据类型
   errors.py         # 异常
   detect.py         # 文件类型识别
-  formatters.py     # 输出格式化（pretty/json）
+  formatters.py     # 输出格式化（pretty/json），含 patch preview
   path_parser.py    # 路径解析（支持 . / [] 混用）
   value_utils.py    # 类型推断与输入强制转换
-  io/               # 文件 I/O（json, jsonl, rewrite）
+  io/               # 文件 I/O（json, jsonl, rewrite, encoding）
   walkers/          # 树遍历（shape, fields, query）
   patch/            # Patch 操作（locator, object/array ops）
-  commands/         # 命令处理器
+  commands/         # 命令处理器（14 个子命令）
 tests/              # 单元测试（53 个用例）
 ```
 
@@ -341,11 +542,11 @@ tests/              # 单元测试（53 个用例）
 - [x] JSON 读写与 patch
 - [x] JSONL 流式扫描与 rewrite
 - [x] `--output json` 机器输出
+- [x] `--dry-run` 预览修改
 - [x] Windows / macOS / Linux 跨平台支持
 - [x] 大文件错误定位与修复（cutline/replaceline）
 - [x] Python API 方法（set_value/add_value/del_value）
 - [x] PowerShell 临时文件绕过方案
-- [ ] `--dry-run` 预览修改
 - [ ] Claude Code / Cursor / OpenAI-compatible coding workflows 插件化接入
 
 ---

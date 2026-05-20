@@ -74,6 +74,21 @@ Requires Python >= 3.8. Cross-platform support for Windows / macOS / Linux.
 
 ---
 
+## Global Options
+
+The following options apply to most commands:
+
+| Option | Description |
+|--------|-------------|
+| `--output {pretty,json}` | Output format; `json` is machine-readable |
+| `--backup` | Create `.bak` backup before writing |
+| `--dry-run` | Preview changes without actually writing |
+| `--kind {json,jsonl}` | Force file type (auto-detect by default) |
+| `--encoding ENCODING` | Force file encoding (auto-detect by default) |
+| `--context N` | Show N lines of context around target line (JSONL only, default 2) |
+
+---
+
 ## Command Cheatsheet (Agent Mode)
 
 ### Read-Only Commands (Safe, will not modify files)
@@ -99,51 +114,195 @@ Requires Python >= 3.8. Cross-platform support for Windows / macOS / Linux.
 | `extend FILE PATH VALUE` | Batch append to array (JSON) | Add multiple elements to a list at once |
 | `append FILE VALUE` | Append record (JSONL) | Add a record to end of JSONL |
 
-### Global Options
+### Repair Commands
 
-- `--output json` — Machine-readable output (for downstream tools / LLM parsing)
-- `--backup` — Create `.bak` before modification
-- `--kind {json,jsonl}` — Force file type
+| Command | Purpose |
+|---------|---------|
+| `cutline FILE LINE` | Extract a specific line to stdout or temp file |
+| `replaceline FILE LINE [CONTENT]` | Replace a specific line |
 
-### Windows PowerShell: Query via CLI, Write via Python API
+---
 
-On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`, `ls`, `extract`, `concat`) work fine via CLI. However, **write commands** (`set`, `add`, `del`, `append`, `extend`, `replaceline`) are problematic because PowerShell strips double quotes from JSON strings, causing complex values to fail.
+## Command Parameters
 
-> **Recommendation for Windows:** Use CLI for all read/query operations. Use Python API for all write/modify operations.
+### `shape`
 
-#### Python API (Recommended for Writes on Windows)
-
-```python
-import sys
-sys.path.insert(0, 'src')
-from jsonseek.commands.set_cmd import set_value
-from jsonseek.commands.add_cmd import add_value
-from jsonseek.commands.del_cmd import del_value
-from jsonseek.commands.replaceline_cmd import replace_line
-
-# Safe on Windows — no shell quoting issues
-set_value('data.json', 'path', {"key": "value"})
-add_value('data.json', 'items', ["item1", "item2"])
-del_value('data.json', 'path')
-replace_line('data.jsonl', 5, '{"id": 5, "fixed": true}')
+```bash
+jsonseek shape FILE [--max-depth N] [--array-mode {sample,full}] [--sample-size N]
 ```
 
-#### Fallback: Temp File Method
+| Parameter | Description |
+|-----------|-------------|
+| `--max-depth N` | Maximum traversal depth |
+| `--array-mode {sample,full}` | Array traversal mode; `sample` (default) or `full` |
+| `--sample-size N` | Number of records to sample for JSONL (default 100) |
 
-If you must use CLI for writes on Windows, use `--from-file` to avoid passing JSON strings on the command line:
+### `fields`
 
-```powershell
-# For set/add with complex values
-echo '{"key": "value"}' > tmp.json
-jsonseek set data.json path --from-file tmp.json
-
-# For cutline/replaceline workflow
-jsonseek cutline broken.jsonl 5 --save-temp
-# Edit the temp file, then:
-jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
+```bash
+jsonseek fields FILE [KEYWORD] [--top]
 ```
 
-No quoting issues on macOS/Linux bash or Windows CMD.
+| Parameter | Description |
+|-----------|-------------|
+| `KEYWORD` | Optional, filter field names |
+| `--top` | Show only top-level fields |
+
+### `ls`
+
+```bash
+jsonseek ls FILE [PATH]
+```
+
+### `get`
+
+```bash
+jsonseek get FILE PATH
+```
+
+### `query`
+
+```bash
+jsonseek query FILE TERM [--case-sensitive] [--exact] [--match-mode {key,value,both}] [--max-results N] [--record-id-field FIELD] [--preview-field FIELD]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `--case-sensitive` | Case-sensitive matching |
+| `--exact` | Exact match (default is substring) |
+| `--match-mode {key,value,both}` | Match key, value, or both (default both) |
+| `--max-results N` | Limit number of results |
+| `--record-id-field FIELD` | Use this field as record ID in JSONL output |
+| `--preview-field FIELD` | Also show preview of this field in JSONL output |
+
+### `set`
+
+```bash
+jsonseek set FILE PATH VALUE [--create-missing] [--from-file FILE]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `--create-missing` | Auto-create missing intermediate paths |
+| `--from-file FILE` | Read value from file (avoids shell quoting issues) |
+
+### `add`
+
+```bash
+jsonseek add FILE PATH VALUE [--create-missing] [--from-file FILE]
+```
+
+Same parameters as `set`.
+
+### `del`
+
+```bash
+jsonseek del FILE PATH [-y]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `-y`, `--yes` | Skip confirmation prompt |
+
+### `append`
+
+```bash
+# JSON: append to array
+jsonseek append FILE ARRAY_PATH VALUE
+
+# JSONL: append record at root
+jsonseek append FILE VALUE
+```
+
+### `extend`
+
+```bash
+jsonseek extend FILE ARRAY_PATH JSON_ARRAY
+```
+
+### `extract`
+
+```bash
+jsonseek extract PATTERN PATH [--include-missing] [--output {pretty,json}]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `--include-missing` | Include files where path is missing (default skip) |
+
+### `concat`
+
+```bash
+jsonseek concat PATTERN [-o OUTPUT] [--no-sort]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `-o, --output-file OUTPUT` | Output file (default stdout) |
+| `--no-sort` | Preserve glob order (default sort by filename) |
+
+### `cutline`
+
+```bash
+jsonseek cutline FILE LINE [--save-temp]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `--save-temp` | Save to temp file and return path |
+
+### `replaceline`
+
+```bash
+jsonseek replaceline FILE LINE [CONTENT] [--from-file FILE]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `--from-file FILE` | Read replacement content from file |
+
+---
+
+## `--dry-run` Preview
+
+All write commands support `--dry-run` to preview changes before applying them.
+
+**JSON preview:**
+
+```bash
+$ jsonseek set config.json services[2].endpoint "https://new.api.com" --dry-run
+[DRY-RUN] Before: services[2].endpoint = "https://old.api.com"
+[DRY-RUN] After:  services[2].endpoint = "https://new.api.com"
+(Dry run, no changes made)
+```
+
+**JSONL preview (with line-number context):**
+
+```bash
+$ jsonseek set logs.jsonl '[15].level' "WARNING" --dry-run
+[DRY-RUN] Before:
+>>>15: {"level":"ERROR","msg":"connection failed"} [TO BE MODIFIED]
+   14: {"level":"INFO","msg":"ok"}
+
+[DRY-RUN] After:
+>>>15: {"level":"WARNING","msg":"connection failed"} [MODIFIED]
+   14: {"level":"INFO","msg":"ok"}
+(Dry run, no changes made)
+```
+
+**Machine-readable output (`--output json`):**
+
+```bash
+$ jsonseek set config.json services[2].endpoint "https://new.api.com" \
+    --dry-run --output json
+{"ok":true,"dry_run":true,"path":"services[2].endpoint",
+ "before":"https://old.api.com","after":"https://new.api.com"}
+```
+
+Operation tags:
+- `[TO BE MODIFIED]` / `[MODIFIED]`
+- `[TO BE DELETED]` / (line removed)
+- `[APPENDED]`
 
 ---
 
@@ -316,6 +475,49 @@ jsonseek shape broken.jsonl
 
 ---
 
+## Windows PowerShell: Query via CLI, Write via Python API
+
+On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`, `ls`, `extract`, `concat`) work fine via CLI. However, **write commands** (`set`, `add`, `del`, `append`, `extend`, `replaceline`) are problematic because PowerShell strips double quotes from JSON strings, causing complex values to fail.
+
+> **Recommendation for Windows:** Use CLI for all read/query operations. Use Python API for all write/modify operations.
+
+### Python API (Recommended for Writes on Windows)
+
+```python
+import sys
+sys.path.insert(0, 'src')
+from jsonseek.commands.set_cmd import set_value
+from jsonseek.commands.add_cmd import add_value
+from jsonseek.commands.del_cmd import del_value
+from jsonseek.commands.replaceline_cmd import replace_line
+
+# Safe on Windows — no shell quoting issues
+set_value('data.json', 'path', {"key": "value"})
+add_value('data.json', 'items', ["item1", "item2"])
+del_value('data.json', 'path')
+replace_line('data.jsonl', 5, '{"id": 5, "fixed": true}')
+```
+
+### Fallback: Temp File Method
+
+If you must use CLI for writes on Windows, use `--from-file` to avoid passing JSON strings on the command line:
+
+```powershell
+# For set/add with complex values
+echo '{"key": "value"}' > tmp.json
+jsonseek set data.json path --from-file tmp.json
+
+# For cutline/replaceline workflow
+jsonseek cutline broken.jsonl 5 --save-temp
+# C:\Users\...\tmpXXXX.jsonline
+# Edit the temp file, then:
+jsonseek replaceline broken.jsonl 5 --from-file C:\Users\...\tmpXXXX.jsonline
+```
+
+No quoting issues on macOS/Linux bash or Windows CMD.
+
+---
+
 ## Project Structure
 
 ```
@@ -324,13 +526,13 @@ src/jsonseek/
   types.py          # Core data types
   errors.py         # Exceptions
   detect.py         # File type detection
-  formatters.py     # Output formatting (pretty/json)
+  formatters.py     # Output formatting (pretty/json), incl. patch preview
   path_parser.py    # Path parsing (supports . / [] mixed)
   value_utils.py    # Type inference and input coercion
-  io/               # File I/O (json, jsonl, rewrite)
+  io/               # File I/O (json, jsonl, rewrite, encoding)
   walkers/          # Tree traversal (shape, fields, query)
   patch/            # Patch operations (locator, object/array ops)
-  commands/         # Command handlers
+  commands/         # Command handlers (14 subcommands)
 tests/              # Unit tests (53 cases)
 ```
 
@@ -341,11 +543,11 @@ tests/              # Unit tests (53 cases)
 - [x] JSON read/write and patch
 - [x] JSONL streaming scan and rewrite
 - [x] `--output json` machine-readable output
+- [x] `--dry-run` preview modifications
 - [x] Windows / macOS / Linux cross-platform support
 - [x] Large file error location and fix (cutline/replaceline)
 - [x] Python API methods (set_value/add_value/del_value)
 - [x] PowerShell temp file bypass solution
-- [ ] `--dry-run` preview modifications
 - [ ] Claude Code / Cursor / OpenAI-compatible coding workflows plugin integration
 
 ---

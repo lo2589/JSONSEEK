@@ -1,6 +1,6 @@
 ---
 name: jsonseek
-description: Query, inspect, and patch JSON/JSONL files from the command line. Use this skill whenever Kimi needs to read, search, modify, or analyze structured JSON/JSONL data on disk. Triggers include: (1) exploring unknown JSON file structure, (2) finding specific keys or values in JSON/JSONL, (3) editing JSON files (add/remove/update fields), (4) analyzing JSON schema or field coverage, (5) processing JSONL record streams.
+description: Query, inspect, and patch JSON/JSONL files from the command line. Use this skill whenever Kimi needs to read, search, modify, or analyze structured JSON/JSONL data on disk. Triggers include: (1) exploring unknown JSON file structure, (2) finding specific keys or values in JSON/JSONL, (3) editing JSON files (add/remove/update fields), (4) analyzing JSON schema or field coverage, (5) processing JSONL record streams, (6) repairing corrupted JSONL files.
 ---
 
 # jsonseek Skill
@@ -31,6 +31,17 @@ jsonseek get data.jsonl '[0].name'
 jsonseek set data.jsonl '[0].age' 30
 ```
 
+## Global Options
+
+| Option | When to use |
+|--------|-------------|
+| `--output json` | Always use when piping output to another tool or when LLM needs to parse the result |
+| `--backup` | Use before any write operation to create `.bak` |
+| `--dry-run` | **Always use first** for write commands to preview before applying |
+| `--kind {json,jsonl}` | Force file type when auto-detection fails |
+| `--encoding ENCODING` | Force encoding when auto-detection fails (e.g. `--encoding gbk`) |
+| `--context N` | JSONL preview: show N lines of context around target line (default 2) |
+
 ## Core Workflows
 
 ### 1. Explore an unknown JSON file
@@ -42,6 +53,15 @@ jsonseek ls file.json             # list root children
 jsonseek ls file.json path        # list children at path
 ```
 
+`shape` options:
+- `--max-depth N` — limit traversal depth
+- `--array-mode full` — traverse all array elements instead of sampling
+- `--sample-size N` — JSONL: number of records to sample (default 100)
+
+`fields` options:
+- `keyword` — filter fields by name
+- `--top` — show only top-level fields
+
 ### 2. Search for data
 
 ```bash
@@ -49,7 +69,16 @@ jsonseek query file.json keyword         # key + value match
 jsonseek query file.json keyword --exact # exact match only
 jsonseek query file.json keyword --match-mode key
 jsonseek query file.jsonl keyword --record-id-field id
+jsonseek query file.jsonl keyword --max-results 5
 ```
+
+Query options:
+- `--case-sensitive` — case-sensitive matching
+- `--exact` — exact match (default is substring)
+- `--match-mode {key,value,both}` — what to match (default both)
+- `--max-results N` — limit results
+- `--record-id-field FIELD` — JSONL: use this field as record ID in output
+- `--preview-field FIELD` — JSONL: also show this field as preview
 
 ### 3. Read values
 
@@ -62,6 +91,8 @@ jsonseek get file.jsonl '[0].name'     # JSONL record selector
 
 ### 4. Edit JSON files
 
+**Always use `--dry-run` first, then commit.**
+
 ```bash
 jsonseek set file.json path value              # update existing
 jsonseek set file.json path value --create-missing
@@ -70,6 +101,13 @@ jsonseek del file.json path                    # delete key or array index
 jsonseek append file.json array_path value     # append one item to array
 jsonseek extend file.json array_path value     # extend array with multiple items (JSON array)
 ```
+
+Set/add options:
+- `--create-missing` — auto-create intermediate paths
+- `--from-file FILE` — read value from file (avoids shell quoting issues)
+
+Del options:
+- `-y`, `--yes` — skip confirmation
 
 ### 5. Edit JSONL files
 
@@ -80,14 +118,44 @@ jsonseek del file.jsonl '[2]'                  # delete whole record
 jsonseek append file.jsonl '{"name":"new"}'    # append record
 ```
 
-## Path Syntax Summary
+### 6. Preview changes with --dry-run
 
-| Style | Example | Meaning |
-|---|---|---|
-| Dot notation | `a.b.c` | `a -> b -> c` |
-| Bracket keys | `a[key1][key2]` | `a -> key1 -> key2` |
-| Mixed | `a[key1].b[0]` | `a -> key1 -> b -> index 0` |
-| Array index | `items[0][1]` | `items -> 0 -> 1` |
+Before any write, preview the before/after:
+
+```bash
+# JSON
+jsonseek set file.json path value --dry-run
+# [DRY-RUN] Before: path = old_value
+# [DRY-RUN] After:  path = new_value
+# (Dry run, no changes made)
+
+# JSONL with line context
+jsonseek set file.jsonl '[5].level' "warning" --dry-run
+# [DRY-RUN] Before:
+# >>>5: {"level":"ERROR"} [TO BE MODIFIED]
+#    4: {"level":"INFO"}
+# [DRY-RUN] After:
+# >>>5: {"level":"WARNING"} [MODIFIED]
+#    4: {"level":"INFO"}
+
+# Machine-readable
+jsonseek set file.json path value --dry-run --output json
+# {"ok":true,"dry_run":true,"path":"...","before":"...","after":"..."}
+```
+
+### 7. Repair corrupted JSONL
+
+```bash
+# Discover errors (shows invalid lines)
+jsonseek shape broken.jsonl
+
+# Extract problematic line
+jsonseek cutline broken.jsonl 5 --save-temp
+# returns temp file path
+
+# Fix the temp file, then replace back
+jsonseek replaceline broken.jsonl 5 --from-file /path/to/fixed.jsonline
+```
 
 ### Batch extract
 
@@ -99,7 +167,8 @@ jsonseek extract "configs/*.json" api.endpoint --output json
 jsonseek extract "data/**/*.json" meta.version
 ```
 
-**Note:** `extract` is for batch operations on JSON files only. JSONL files will appear as `[skipped]` in the output.
+Options:
+- `--include-missing` — include files where path does not exist (default skips)
 
 ### Concatenate JSON files to JSONL
 
@@ -110,10 +179,24 @@ jsonseek concat "experiments/*/result.json" -o combined.jsonl
 jsonseek concat "data/*.json" --no-sort -o output.jsonl
 ```
 
+Options:
+- `-o, --output-file` — output file (default stdout)
+- `--no-sort` — preserve glob order instead of sorting by filename
+
+## Path Syntax Summary
+
+| Style | Example | Meaning |
+|---|---|---|
+| Dot notation | `a.b.c` | `a -> b -> c` |
+| Bracket keys | `a[key1][key2]` | `a -> key1 -> key2` |
+| Mixed | `a[key1].b[0]` | `a -> key1 -> b -> index 0` |
+| Array index | `items[0][1]` | `items -> 0 -> 1` |
+
 ## Important Notes
 
 - Use `--output json` when piping output to another tool.
 - Use `--backup` before write operations to create `.bak`.
+- **Use `--dry-run` before any write to preview changes.**
 - `append` adds a single item to an array.
 - `extend` adds all items from a JSON array to the target array.
 - `append` for JSON requires `path value` (array path + value).
@@ -127,8 +210,7 @@ On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`
 
 ### Chinese / UTF-8 Output on Windows
 
-For read-only CLI commands that print Chinese text, set Python and PowerShell
-output encoding to UTF-8 before running jsonseek:
+For read-only CLI commands that print Chinese text, set Python and PowerShell output encoding to UTF-8 before running jsonseek:
 
 ```powershell
 $env:PYTHONIOENCODING = "utf-8"
@@ -143,15 +225,13 @@ python -m jsonseek.cli get file.json path
 python -m jsonseek.cli query file.json keyword
 ```
 
-It does **not** make shell-passed JSON strings safe for writes. This is still
-unsafe on Windows:
+It does **not** make shell-passed JSON strings safe for writes. This is still unsafe on Windows:
 
 ```powershell
 python -m jsonseek.cli set file.json path '{"content":"中文"}'
 ```
 
-For Chinese or complex JSON writes, use the Python API or `--from-file`, not
-PowerShell command arguments.
+For Chinese or complex JSON writes, use the Python API or `--from-file`, not PowerShell command arguments.
 
 ### Python API (Recommended for Writes on Windows)
 
@@ -181,8 +261,7 @@ del_value('file.json', 'path')
 replace_line('file.jsonl', 5, '{"id": 5, "name": "fixed"}')
 ```
 
-CLI write commands print a patch preview on success and `Error: ...` on failure.
-Python API write helpers are quiet on success and raise an exception on failure.
+CLI write commands print a patch preview on success and `Error: ...` on failure. Python API write helpers are quiet on success and raise an exception on failure.
 
 ### Fallback: Temp File Method
 

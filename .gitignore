@@ -20,6 +20,8 @@ jsonseek_function_plan.md
 Thumbs.db
 
 .kimi/
+docs/
+doc/
 
 # Backup & temp
 *.bak

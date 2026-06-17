@@ -12,3 +12,4 @@ from . import extend_cmd
 from . import concat_cmd
 from . import cutline_cmd
 from . import replaceline_cmd
+from . import diff_cmd

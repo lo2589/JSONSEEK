@@ -2,7 +2,7 @@ import json
 from typing import Any, List, Optional, Tuple
 
 from .types import ShapeNode, FieldStat, QueryHit
-from .value_utils import short_preview, stable_type_name
+from .value_utils import short_preview, stable_type_name, infer_node_kind
 
 
 def format_shape_result(shape: ShapeNode, output: str = "pretty") -> str:
@@ -145,6 +145,67 @@ def format_extract_result(results: List[Any], output: str = "pretty") -> str:
         else:
             preview = str(value)
         lines.append(f"{r['file']:<40} {preview}")
+    return "\n".join(lines)
+
+
+def format_diff_result(
+    diffs: List[dict],
+    file_a: str,
+    file_b: str,
+    mode: str = "both",
+    output: str = "pretty",
+    truncated: bool = False,
+) -> str:
+    """Format the result of `diff` (structure / content comparison of two files)."""
+    counts = {"added": 0, "removed": 0, "value_changed": 0, "type_changed": 0}
+    for d in diffs:
+        counts[d["kind"]] = counts.get(d["kind"], 0) + 1
+    summary = {
+        "added": counts["added"],
+        "removed": counts["removed"],
+        "changed": counts["value_changed"],
+        "type_changed": counts["type_changed"],
+    }
+    identical = not diffs
+
+    if output == "json":
+        return json.dumps({
+            "identical": identical,
+            "mode": mode,
+            "files": {"a": file_a, "b": file_b},
+            "summary": summary,
+            "truncated": truncated,
+            "diffs": diffs,
+        }, ensure_ascii=False, indent=2, default=str)
+
+    # Pretty output. Markers: + added (only B), - removed (only A),
+    # ~ value changed, ! type changed.
+    lines: List[str] = [f"--- a: {file_a}", f"+++ b: {file_b}", f"mode: {mode}"]
+    if identical:
+        lines.append("")
+        lines.append("Files are identical." if mode == "both" else f"No {mode} differences.")
+        return "\n".join(lines)
+    lines.append("")
+    for d in diffs:
+        path = d["path"] or "(root)"
+        kind = d["kind"]
+        if kind == "added":
+            t = infer_node_kind(d["after"])
+            lines.append(f"+ {path}  ({t})  {short_preview(d['after'], 80)}")
+        elif kind == "removed":
+            t = infer_node_kind(d["before"])
+            lines.append(f"- {path}  ({t})  {short_preview(d['before'], 80)}")
+        elif kind == "value_changed":
+            lines.append(f"~ {path}  {short_preview(d['before'], 60)} -> {short_preview(d['after'], 60)}")
+        elif kind == "type_changed":
+            lines.append(f"! {path}  {infer_node_kind(d['before'])} -> {infer_node_kind(d['after'])}")
+    lines.append("")
+    lines.append(
+        f"Summary: +{summary['added']} added, -{summary['removed']} removed, "
+        f"~{summary['changed']} changed, !{summary['type_changed']} type-changed"
+    )
+    if truncated:
+        lines.append("(output truncated by --max-results)")
     return "\n".join(lines)
 
 

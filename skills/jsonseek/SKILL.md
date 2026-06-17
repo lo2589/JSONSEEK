@@ -157,6 +157,47 @@ jsonseek cutline broken.jsonl 5 --save-temp
 jsonseek replaceline broken.jsonl 5 --from-file /path/to/fixed.jsonline
 ```
 
+### 8. Compare two files `diff`
+
+Compare two JSON/JSONL files along **two aspects**: structure (schema) and content (values).
+
+```bash
+jsonseek diff a.json b.json                    # both aspects (default)
+jsonseek diff a.json b.json --mode structure   # only schema: keys/types added/removed/changed
+jsonseek diff a.json b.json --mode content     # only value changes at shared paths
+jsonseek diff a.json b.json --output json      # machine-readable
+jsonseek diff a.jsonl b.jsonl                  # JSONL: compared record-by-record (by index)
+```
+
+Markers (pretty output):
+
+| Marker | Meaning |
+|---|---|
+| `+ path (type) preview` | added — only in B (right) |
+| `- path (type) preview` | removed — only in A (left) |
+| `~ path  before -> after` | value changed (same type) |
+| `! path  typeA -> typeB` | type changed |
+
+Modes:
+- `structure` — `added` / `removed` / `type_changed` (ignores pure value changes)
+- `content` — `value_changed` / `type_changed` (ignores key add/remove)
+- `both` (default) — all of the above
+
+Notes:
+- Paths use jsonseek syntax (`a.b`, `items[0]`), so you can feed a diff path straight into `get`.
+- Objects compared by key (whole new/removed subtree collapses to one entry); arrays compared by index.
+- Types are JSON kinds (`null/boolean/number/string/array/object`); `1` vs `1.0` is **not** a type change.
+- `--max-results N` caps the number of entries; `--kind` forces file kind for both files.
+- **`diff` is read-only** — safe to run via CLI on Windows (no shell-quoting issue).
+
+```bash
+# JSON output shape
+jsonseek diff a.json b.json --output json
+# {"identical":false,"mode":"both","files":{...},
+#  "summary":{"added":2,"removed":1,"changed":2,"type_changed":1},
+#  "truncated":false,"diffs":[{"kind":"value_changed","path":"age","before":30,"after":31}, ...]}
+```
+
 ### Batch extract
 
 Use `extract PATTERN PATH` to pull the same path from many JSON files:
@@ -204,7 +245,7 @@ Options:
 
 ## Windows Users: Query via CLI, Write via Python API
 
-On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`, `ls`, `extract`, `concat`) work fine via CLI. However, **write commands** (`set`, `add`, `del`, `append`, `extend`, `replaceline`) are problematic because PowerShell strips double quotes from JSON strings, causing complex values to fail.
+On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`, `ls`, `extract`, `concat`, `diff`) work fine via CLI. However, **write commands** (`set`, `add`, `del`, `append`, `extend`, `replaceline`) are problematic because PowerShell strips double quotes from JSON strings, causing complex values to fail.
 
 > **Recommendation for Windows:** Use CLI for all read/query operations. Use Python API for all write/modify operations.
 

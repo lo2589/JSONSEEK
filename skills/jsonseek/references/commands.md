@@ -219,3 +219,55 @@ d.jsonl  [skipped] Skipped: extract only supports JSON files
   {"file": "d.jsonl", "value": null, "ok": false, "error": "Skipped: extract does not support JSONL files"}
 ]
 ```
+
+---
+
+## diff — Compare Two Files
+
+Compare two JSON/JSONL files along two aspects: **structure** (schema) and **content** (values). Read-only.
+
+```bash
+jsonseek diff a.json b.json                    # both aspects (default)
+jsonseek diff a.json b.json --mode structure   # keys/types added/removed/changed
+jsonseek diff a.json b.json --mode content     # value changes at shared paths
+jsonseek diff a.json b.json --output json
+jsonseek diff a.jsonl b.jsonl                  # JSONL: by record index
+```
+
+**Arguments:**
+- `file_a` — first (left) file
+- `file_b` — second (right) file
+
+**Options:**
+- `--mode {structure,content,both}` — which aspect to report (default `both`)
+- `--kind {json,jsonl}` — force file kind for both files
+- `--output {pretty,json}` — output format
+- `--encoding` — file encoding (auto-detect by default)
+- `--max-results N` — cap number of diff entries
+
+**Modes:**
+- `structure` — `added` / `removed` / `type_changed` (ignores pure value changes)
+- `content` — `value_changed` / `type_changed` (ignores key add/remove)
+- `both` — all of the above
+
+**Markers (pretty):** `+` added (only B), `-` removed (only A), `~` value changed, `!` type changed.
+
+**Notes:**
+- Diff paths use jsonseek path syntax (`a.b`, `items[0]`) and feed directly into `get`.
+- Objects compared by key (a whole new/removed subtree collapses to one entry); arrays by index.
+- Types are JSON kinds (`null/boolean/number/string/array/object`); `1` vs `1.0` is not a type change.
+
+**Output (json):**
+```json
+{
+  "identical": false,
+  "mode": "both",
+  "files": {"a": "a.json", "b": "b.json"},
+  "summary": {"added": 2, "removed": 1, "changed": 2, "type_changed": 1},
+  "truncated": false,
+  "diffs": [
+    {"kind": "value_changed", "path": "age", "before": 30, "after": 31},
+    {"kind": "added", "path": "added", "before": null, "after": 9}
+  ]
+}
+```

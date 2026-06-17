@@ -106,6 +106,17 @@ def build_parser() -> argparse.ArgumentParser:
     concat_p.add_argument("--encoding", default=None, help="File encoding (auto-detect by default)")
     concat_p.add_argument("--no-sort", action="store_true", default=False, help="Preserve glob order instead of sorting by filename")
 
+    # diff
+    diff_p = sub.add_parser("diff", help="Compare two JSON/JSONL files (structure and/or content)")
+    diff_p.add_argument("file_a", help="First (left) file")
+    diff_p.add_argument("file_b", help="Second (right) file")
+    diff_p.add_argument("--mode", choices=["structure", "content", "both"], default="both",
+                        help="structure: keys/types; content: value changes; both (default): all")
+    diff_p.add_argument("--kind", choices=["json", "jsonl"], default=None, help="Force file kind for both files")
+    diff_p.add_argument("--output", choices=["pretty", "json"], default="pretty", help="Output format")
+    diff_p.add_argument("--encoding", default=None, help="File encoding (auto-detect by default)")
+    diff_p.add_argument("--max-results", type=int, default=None, help="Limit number of diff entries shown")
+
     # cutline
     cutline_p = sub.add_parser("cutline", help="Extract a specific line from a file")
     cutline_p.add_argument("file", help="Target file")
@@ -150,6 +161,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
         "concat": commands.concat_cmd.handle_concat,
         "cutline": commands.cutline_cmd.handle_cutline,
         "replaceline": commands.replaceline_cmd.handle_replaceline,
+        "diff": commands.diff_cmd.handle_diff,
     }
     handler = handlers.get(command)
     if handler is None:

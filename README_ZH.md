@@ -102,6 +102,7 @@ jsonseek --version    # JSONSEEK 0.1.0
 | `query FILE TERM` | 搜索 key 或 value | 找某个配置项在哪 |
 | `extract PATTERN PATH` | 批量提取同路径值 | 从多个配置文件抓同一个字段 |
 | `concat PATTERN` | 多个 JSON 拼成 JSONL | 批量格式转换、数据归集 |
+| `diff FILE_A FILE_B` | 对比两个文件（结构 + 内容） | 看两个 JSON/JSONL 之间键/类型/值变了什么 |
 
 ### 写命令（会修改文件，建议加 `--backup`）
 
@@ -174,6 +175,21 @@ jsonseek query FILE TERM [--case-sensitive] [--exact] [--match-mode {key,value,b
 | `--max-results N` | 限制返回结果数 |
 | `--record-id-field FIELD` | JSONL 输出时用该字段作为记录标识 |
 | `--preview-field FIELD` | JSONL 输出时额外显示该字段的预览 |
+
+### `diff`
+
+```bash
+jsonseek diff FILE_A FILE_B [--mode {structure,content,both}] [--max-results N] [--output {pretty,json}]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--mode structure` | 只看结构差异：键增删、类型变化 |
+| `--mode content` | 只看共有路径上的值变化（含类型变化） |
+| `--mode both` | 全部（默认） |
+| `--max-results N` | 限制 diff 条数 |
+
+标记：`+` 新增（只在 B）、`-` 删除（只在 A）、`~` 值变化、`!` 类型变化。只读命令，Windows CLI 直接可用。diff 路径用 jsonseek 路径语法，可直接喂给 `get`。
 
 ### `set`
 
@@ -477,7 +493,7 @@ jsonseek shape broken.jsonl
 
 ## Windows PowerShell：查询用命令行，写入用 Python API
 
-在 Windows PowerShell 中，**只读命令**（`shape`、`fields`、`get`、`query`、`ls`、`extract`、`concat`）通过 CLI 运行没有问题。但**写入命令**（`set`、`add`、`del`、`append`、`extend`、`replaceline`）会有问题，因为 PowerShell 会吃掉 JSON 字符串里的双引号，导致复杂值传递失败。
+在 Windows PowerShell 中，**只读命令**（`shape`、`fields`、`get`、`query`、`ls`、`extract`、`concat`、`diff`）通过 CLI 运行没有问题。但**写入命令**（`set`、`add`、`del`、`append`、`extend`、`replaceline`）会有问题，因为 PowerShell 会吃掉 JSON 字符串里的双引号，导致复杂值传递失败。
 
 > **Windows 用户建议：** 所有查询/读取操作使用 CLI。所有写入/修改操作使用 Python API。
 
@@ -531,8 +547,8 @@ src/jsonseek/
   io/               # 文件 I/O（json, jsonl, rewrite, encoding）
   walkers/          # 树遍历（shape, fields, query）
   patch/            # Patch 操作（locator, object/array ops）
-  commands/         # 命令处理器（14 个子命令）
-tests/              # 单元测试（53 个用例）
+  commands/         # 命令处理器（15 个子命令）
+tests/              # 单元测试（76 个用例）
 ```
 
 ---
@@ -547,6 +563,7 @@ tests/              # 单元测试（53 个用例）
 - [x] 大文件错误定位与修复（cutline/replaceline）
 - [x] Python API 方法（set_value/add_value/del_value）
 - [x] PowerShell 临时文件绕过方案
+- [x] 对比两个文件（`diff`：结构 + 内容）
 - [ ] Claude Code / Cursor / OpenAI-compatible coding workflows 插件化接入
 
 ---

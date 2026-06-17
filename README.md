@@ -102,6 +102,7 @@ The following options apply to most commands:
 | `query FILE TERM` | Search keys or values | Find where a config item is |
 | `extract PATTERN PATH` | Batch extract values at same path | Grab the same field from multiple config files |
 | `concat PATTERN` | Merge multiple JSONs into JSONL | Batch format conversion, data aggregation |
+| `diff FILE_A FILE_B` | Compare two files (structure + content) | See what keys/types/values changed between two JSON/JSONL files |
 
 ### Write Commands (Will modify files, `--backup` recommended)
 
@@ -174,6 +175,21 @@ jsonseek query FILE TERM [--case-sensitive] [--exact] [--match-mode {key,value,b
 | `--max-results N` | Limit number of results |
 | `--record-id-field FIELD` | Use this field as record ID in JSONL output |
 | `--preview-field FIELD` | Also show preview of this field in JSONL output |
+
+### `diff`
+
+```bash
+jsonseek diff FILE_A FILE_B [--mode {structure,content,both}] [--max-results N] [--output {pretty,json}]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `--mode structure` | Only schema differences: keys added/removed, type changes |
+| `--mode content` | Only value changes at shared paths (+ type changes) |
+| `--mode both` | All of the above (default) |
+| `--max-results N` | Cap number of diff entries |
+
+Markers: `+` added (only B), `-` removed (only A), `~` value changed, `!` type changed. Read-only; safe via CLI on Windows. Diff paths use jsonseek path syntax, so they feed straight into `get`.
 
 ### `set`
 
@@ -477,7 +493,7 @@ jsonseek shape broken.jsonl
 
 ## Windows PowerShell: Query via CLI, Write via Python API
 
-On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`, `ls`, `extract`, `concat`) work fine via CLI. However, **write commands** (`set`, `add`, `del`, `append`, `extend`, `replaceline`) are problematic because PowerShell strips double quotes from JSON strings, causing complex values to fail.
+On Windows PowerShell, **read-only commands** (`shape`, `fields`, `get`, `query`, `ls`, `extract`, `concat`, `diff`) work fine via CLI. However, **write commands** (`set`, `add`, `del`, `append`, `extend`, `replaceline`) are problematic because PowerShell strips double quotes from JSON strings, causing complex values to fail.
 
 > **Recommendation for Windows:** Use CLI for all read/query operations. Use Python API for all write/modify operations.
 
@@ -532,8 +548,8 @@ src/jsonseek/
   io/               # File I/O (json, jsonl, rewrite, encoding)
   walkers/          # Tree traversal (shape, fields, query)
   patch/            # Patch operations (locator, object/array ops)
-  commands/         # Command handlers (14 subcommands)
-tests/              # Unit tests (53 cases)
+  commands/         # Command handlers (15 subcommands)
+tests/              # Unit tests (76 cases)
 ```
 
 ---
@@ -548,6 +564,7 @@ tests/              # Unit tests (53 cases)
 - [x] Large file error location and fix (cutline/replaceline)
 - [x] Python API methods (set_value/add_value/del_value)
 - [x] PowerShell temp file bypass solution
+- [x] Compare two files (`diff`: structure + content)
 - [ ] Claude Code / Cursor / OpenAI-compatible coding workflows plugin integration
 
 ---

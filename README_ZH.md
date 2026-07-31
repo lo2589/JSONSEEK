@@ -56,3 +56,46 @@ jsonseek <current_version>
 | **PyPI** | https://pypi.org/project/jsonseek/ |
 | **GitHub** | https://github.com/lo2589/JSONSEEK |
 | **Issue** | https://github.com/lo2589/JSONSEEK/issues |
+
+---
+
+## 完整命令参考
+
+14 个命令，每个都跑 `jsonseek <command> --help` 能看最全 flag。
+
+**7 个只读命令**：`shape` / `fields` / `ls` / `get` / `query` / `extract` / `concat`
+**7 个写命令**：`set` / `add` / `del` / `append` / `extend` / `cutline` / `replaceline`
+
+**通用 flag**：
+
+```
+--kind {json,jsonl}        强制文件类型
+--output {pretty,json}     pretty 默认，json 给 agent 用
+--encoding ENCODING        强制编码（gbk / utf-8 等）
+--backup                   写之前生成 .bak
+--dry-run                  预览，不真写
+--context N                JSONL 上下文行数（默认 2）
+```
+
+**每个命令独有 flag**：
+
+| 命令 | 独有 flag |
+|---|---|
+| `shape` | `--max-depth` `--array-mode {sample,full}` `--sample-size` |
+| `fields` | `--top` |
+| `query` | `--case-sensitive` `--exact` `--match-mode {key,value,both}` `--max-results` `--record-id-field` `--preview-field` |
+| `extract` | `--include-missing` |
+| `concat` | `-o, --output-file` `--no-sort` |
+| `set` / `add` | `--create-missing` `--from-file` |
+| `del` | `-y, --yes` |
+| `append` / `extend` | `--from-file` |
+| `cutline` | `--save-temp` |
+| `replaceline` | `--from-file` |
+
+**退出码**：
+
+| 码 | 含义 |
+|---|---|
+| 0 | 成功 |
+| 1 | 通用错误（路径错、文件不存在等） |
+| 2 | 参数错 |

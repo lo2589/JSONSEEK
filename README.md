@@ -167,6 +167,17 @@ jsonseek <current_version>
 | 混合 | `a[key1].b[0]` | `a -> key1 -> b -> 0` |
 | 数组下标 | `items[0][1]` | `items -> 0 -> 1` |
 
+> **⚠️ zsh 用户**：路径里有 `[N]` 必须用单引号（或者 `noglob`），zsh 会尝试把方括号当 glob 展开：
+> ```bash
+> # ❌ zsh 会报 "no matches found"
+> jsonseek del file.json services[0].deprecated
+>
+> # ✅ 以下任意一种都行
+> jsonseek del file.json 'services[0].deprecated'
+> noglob jsonseek del file.json services[0].deprecated
+> ```
+> bash / fish / 加引号的 zsh 都正常。
+
 ---
 
 ## 三条铁律（给 LLM 也给人类）
@@ -245,6 +256,178 @@ replace_line('file.jsonl', 5, '{"id": 5, "name": "fixed"}')
 ```
 
 CLI 写命令成功时打印 patch 预览，失败时打印 `Error: ...`。Python API 写助手成功时静默，失败时抛异常。
+
+---
+
+## 完整命令参考
+
+每个命令的完整签名、所有 flag、所有输出格式。**最新最全的列表**直接跑 `jsonseek <command> --help`。
+
+### 只读命令
+
+#### `shape FILE`
+
+显示结构 / 骨架树。
+
+```
+--kind {json,jsonl}        强制文件类型（默认自动检测）
+--output {pretty,json}     输出格式（默认 pretty）
+--encoding ENCODING        强制编码（默认自动检测）
+--max-depth N              限制遍历深度（默认不限制）
+--array-mode {sample,full} JSONL 数组遍历方式，`sample` 默认，`full` 走全部
+--sample-size N            JSONL 采样行数（默认 100）
+```
+
+#### `fields FILE [keyword]`
+
+列出所有字段及类型 / 出现次数。
+
+```
+--top                      只显示顶层字段
+--kind / --output / --encoding    (同上)
+```
+
+#### `ls FILE [path]`
+
+列出某路径下的子节点。JSONL：路径必须以 `[N]` 或 `records[N]` 开头。
+
+```
+--kind / --output / --encoding    (同上)
+```
+
+#### `get FILE path`
+
+读某路径下的值。`--output` 控制输出格式。
+
+```
+--kind / --output / --encoding    (同上)
+```
+
+#### `query FILE term`
+
+搜索 key 或 value。
+
+```
+--case-sensitive           大小写敏感（默认不敏感）
+--exact                    完全匹配（默认子串匹配）
+--match-mode {key,value,both}    匹配目标（默认 both）
+--max-results N            限制结果数
+--record-id-field FIELD    JSONL：用 FIELD 当 record ID
+--preview-field FIELD      JSONL：额外显示 FIELD 作为预览
+--kind / --output / --encoding / --context N    (同上)
+```
+
+#### `extract PATTERN path`
+
+从 glob 匹配到的多个 JSON 文件批量取同一个路径。
+
+```
+--include-missing          路径不存在的文件也包含进来（默认跳过）
+--output {pretty,json}     输出格式（默认 pretty）
+```
+
+#### `concat PATTERN`
+
+把多个 JSON 文件合并成一个 JSONL。
+
+```
+-o, --output-file FILE     输出文件（默认 stdout）
+--no-sort                  保留 glob 顺序（默认按文件名排序）
+```
+
+### 写命令（**永远先 `--backup`**）
+
+#### `set FILE path value`
+
+修改某路径下的现有值。
+
+```
+--create-missing           自动创建中间路径（默认不存在就报错）
+--from-file FILE           从文件读新值（避免 shell quoting 问题）
+--backup                   写之前生成 FILE.bak
+--dry-run                  只预览，不真写
+```
+
+#### `add FILE path value`
+
+往 object 加新 key。**key 已存在会报错**。
+
+```
+--create-missing           自动创建中间路径
+--from-file FILE           从文件读值
+--backup / --dry-run       (同上)
+```
+
+#### `del FILE path`
+
+删一个 key 或数组元素。
+
+```
+-y, --yes                  跳过确认
+--backup / --dry-run       (同上)
+```
+
+#### `append FILE path value`
+
+**JSON**：往数组追加一项，路径要指向数组。
+**JSONL**：在根追加一条 record（不需要 path）。
+
+```
+--from-file FILE           从文件读值
+--backup / --dry-run       (同上)
+```
+
+#### `extend FILE path json_array`
+
+往数组扩展所有元素（**自动展开** JSON 数组里的每个 item）。
+
+```
+--from-file FILE           从文件读数组
+--backup / --dry-run       (同上)
+```
+
+#### `cutline FILE LINE`
+
+提取指定 JSONL 行（1-indexed）到临时文件。用来修复坏行。
+
+```
+--save-temp                保存到临时文件并打印路径；否则打印到 stdout
+```
+
+#### `replaceline FILE LINE [CONTENT]`
+
+替换指定 JSONL 行。用 `--from-file` 避免 quoting 问题。
+
+```
+--from-file FILE           从文件读替换内容
+```
+
+### 通用 flag（所有命令都有）
+
+```
+--kind {json,jsonl}        强制文件类型（默认自动检测）
+--output {pretty,json}     pretty 默认人类可读；json 给 agent / 管道用
+--encoding ENCODING        强制编码（默认自动检测，如 gbk / utf-8）
+--backup                   写之前生成 FILE.bak
+--dry-run                  预览，不真写
+--context N                JSONL：目标行周围显示多少行（默认 2）
+```
+
+> **永远先用 `--dry-run` 试一遍**。再加 `--backup` 真改。
+
+### 退出码
+
+| 码 | 含义 |
+|---|---|
+| 0 | 成功 |
+| 1 | 通用错误（路径无效、文件不存在、写失败等） |
+| 2 | CLI 参数错 |
+
+### 环境变量
+
+| 变量 | 作用 |
+|---|---|
+| `PYTHONIOENCODING` | 强制 stdout 编码（Windows 中文输出有用） |
 
 ---
 

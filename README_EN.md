@@ -157,6 +157,17 @@ jsonseek <current_version>
 | Mixed | `a[key1].b[0]` | `a -> key1 -> b -> 0` |
 | Array index | `items[0][1]` | `items -> 0 -> 1` |
 
+> **⚠️ zsh users**: paths containing `[N]` must be wrapped in single quotes (or use `noglob`), because zsh tries to glob-expand brackets:
+> ```bash
+> # ❌ zsh: "no matches found"
+> jsonseek del file.json services[0].deprecated
+>
+> # ✅ either of these works
+> jsonseek del file.json 'services[0].deprecated'
+> noglob jsonseek del file.json services[0].deprecated
+> ```
+> bash / fish / zsh-with-quotes all work fine.
+
 ---
 
 ## The three iron rules (for LLMs and humans)
@@ -234,6 +245,178 @@ replace_line('file.jsonl', 5, '{"id": 5, "name": "fixed"}')
 ```
 
 CLI write commands print a patch preview on success and `Error: ...` on failure. Python API write helpers are silent on success and raise on failure.
+
+---
+
+## Complete command reference
+
+Every command's full signature, every flag, and every output format. For the most up-to-date list, run `jsonseek <command> --help`.
+
+### Read-only commands
+
+#### `shape FILE`
+
+Show structure / skeleton tree.
+
+```
+--kind {json,jsonl}        Force file kind (auto-detected by default)
+--output {pretty,json}     Output format (default: pretty)
+--encoding ENCODING        Force encoding (auto-detected by default)
+--max-depth N              Limit traversal depth (default: unlimited)
+--array-mode {sample,full} JSONL array mode; `sample` is default, `full` walks every element
+--sample-size N            JSONL: number of records to sample (default: 100)
+```
+
+#### `fields FILE [keyword]`
+
+List all fields with type / occurrence count.
+
+```
+--top                      Show only top-level fields
+--kind / --output / --encoding    (same as above)
+```
+
+#### `ls FILE [path]`
+
+List children at a path. JSONL: path must start with `[N]` or `records[N]`.
+
+```
+--kind / --output / --encoding    (same as above)
+```
+
+#### `get FILE path`
+
+Read a value at a path. Output respects `--output`.
+
+```
+--kind / --output / --encoding    (same as above)
+```
+
+#### `query FILE term`
+
+Search keys or values.
+
+```
+--case-sensitive           Case-sensitive matching (default: insensitive)
+--exact                    Exact match (default: substring)
+--match-mode {key,value,both}    What to match (default: both)
+--max-results N            Limit number of results
+--record-id-field FIELD    JSONL: use FIELD as record ID in output
+--preview-field FIELD      JSONL: also show FIELD as preview
+--kind / --output / --encoding / --context N    (same as above)
+```
+
+#### `extract PATTERN path`
+
+Batch-extract the same path from many JSON files matched by a glob pattern.
+
+```
+--include-missing          Include files where the path does not exist (default: skip)
+--output {pretty,json}     Output format (default: pretty)
+```
+
+#### `concat PATTERN`
+
+Concatenate multiple JSON files into a single JSONL.
+
+```
+-o, --output-file FILE     Output file (default: stdout)
+--no-sort                  Preserve glob order (default: sort by filename)
+```
+
+### Write commands (always `--backup` first)
+
+#### `set FILE path value`
+
+Modify an existing value at a path.
+
+```
+--create-missing           Auto-create intermediate paths (default: error if missing)
+--from-file FILE           Read the new value from a file (avoids shell quoting issues)
+--backup                   Create FILE.bak before writing
+--dry-run                  Preview only, no changes
+```
+
+#### `add FILE path value`
+
+Add a new key to an object. **Errors if the key already exists.**
+
+```
+--create-missing           Auto-create intermediate paths
+--from-file FILE           Read the value from a file
+--backup / --dry-run       Same as above
+```
+
+#### `del FILE path`
+
+Delete a key or an array element.
+
+```
+-y, --yes                  Skip the confirmation prompt
+--backup / --dry-run       Same as above
+```
+
+#### `append FILE path value`
+
+**JSON**: append one item to an array. Path must end at an array.
+**JSONL**: append a record at root level (no path needed).
+
+```
+--from-file FILE           Read the value from a file
+--backup / --dry-run       Same as above
+```
+
+#### `extend FILE path json_array`
+
+Extend an array with all items from a JSON array (unpacked).
+
+```
+--from-file FILE           Read the array from a file
+--backup / --dry-run       Same as above
+```
+
+#### `cutline FILE LINE`
+
+Extract a specific JSONL line (1-indexed) to a temp file. Used to repair corrupt lines.
+
+```
+--save-temp                Save to a temp file and print the path; otherwise print to stdout
+```
+
+#### `replaceline FILE LINE [CONTENT]`
+
+Replace a specific JSONL line. Use `--from-file` to avoid quoting issues.
+
+```
+--from-file FILE           Read the replacement content from a file
+```
+
+### Universal flags (every command)
+
+```
+--kind {json,jsonl}        Force file kind (auto-detected by default)
+--output {pretty,json}     pretty (default) is human-readable; json is for agent / pipe consumption
+--encoding ENCODING        Force encoding (auto-detected; e.g. `gbk`, `utf-8`)
+--backup                   Create FILE.bak before any write
+--dry-run                  Preview the change without writing
+--context N                JSONL: lines of context around the target (default: 2)
+```
+
+> **Always use `--dry-run` first.** Then add `--backup` for the real run.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Generic error (invalid path, missing file, write error, etc.) |
+| 2 | Invalid CLI arguments |
+
+### Environment variables
+
+| Var | Effect |
+|---|---|
+| `PYTHONIOENCODING` | Force stdout encoding (helps with Chinese output on Windows) |
 
 ---
 

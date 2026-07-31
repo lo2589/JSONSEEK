@@ -8,8 +8,9 @@ from .errors import JsonseekError
 
 
 def build_parser() -> argparse.ArgumentParser:
+    from . import __version__
     parser = argparse.ArgumentParser(prog="jsonseek", description="Query and patch JSON/JSONL files from the command line.")
-    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
 
     sub = parser.add_subparsers(dest="command", help="Available commands")
 

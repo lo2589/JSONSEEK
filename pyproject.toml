@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jsonseek"
+version = "0.1.4"
+description = "Query and patch JSON/JSONL files from the command line"
+readme = "README_EN.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "lo2589"},
+]
+keywords = ["json", "jsonl", "cli", "json-query", "json-patch", "jsonl-tools"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/lo2589/JSONSEEK"
+Repository = "https://github.com/lo2589/JSONSEEK"
+Issues = "https://github.com/lo2589/JSONSEEK/issues"
+
+[project.scripts]
+jsonseek = "jsonseek.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+jsonseek = ["py.typed"]
+
+[tool.setuptools.data-files]
+"skills/jsonseek" = [
+    "skills/jsonseek/SKILL.md",
+    "skills/jsonseek/references/*.md",
+]
+"docs" = ["README.md", "README_ZH.md"]

@@ -1,0 +1,10 @@
+include README.md
+include README_EN.md
+include README_ZH.md
+include LICENSE
+include pyproject.toml
+recursive-include skills *.md
+recursive-include src/jsonseek *.py
+recursive-include tests *.py
+recursive-include tests/data *.json
+recursive-include tests/data *.jsonl

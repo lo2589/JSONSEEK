@@ -1,6 +1,6 @@
 ---
 name: jsonseek
-description: Query, inspect, and patch JSON/JSONL files from the command line. Use this skill whenever Kimi needs to read, search, modify, or analyze structured JSON/JSONL data on disk. Triggers include: (1) exploring unknown JSON file structure, (2) finding specific keys or values in JSON/JSONL, (3) editing JSON files (add/remove/update fields), (4) analyzing JSON schema or field coverage, (5) processing JSONL record streams, (6) repairing corrupted JSONL files.
+description: Query, inspect, and patch JSON/JSONL files from the command line. Use this skill whenever Kimi needs to read, search, modify, or analyze structured JSON/JSONL data on disk. Triggers include: (1) exploring unknown JSON file structure, (2) finding specific keys or values in JSON/JSONL, (3) editing JSON files (add/remove/update fields), (4) analyzing JSON schema or field coverage, (5) processing JSONL record streams, (6) finding which line of a JSON/JSONL file fails to parse and why, and fixing that line in place.
 ---
 
 # jsonseek Skill
@@ -143,17 +143,52 @@ jsonseek set file.json path value --dry-run --output json
 # {"ok":true,"dry_run":true,"path":"...","before":"...","after":"..."}
 ```
 
-### 7. Repair corrupted JSONL
+### 7. Locate what is broken in a malformed file
+
+`shape` on an unparseable file does not guess a repair. It reports where the
+parser stopped, the offending text, and the parser's own message, so the fix is
+yours to make rather than something silently substituted:
 
 ```bash
-# Discover errors (shows invalid lines)
 jsonseek shape broken.jsonl
+```
+```
+Error: Found 2 invalid lines in broken.jsonl:
+  Line 2: {"id":2,"name":"unterminated
+    Error: Unterminated string starting at
+  Line 4: {"id":4,,}
+    Error: Expecting property name enclosed in double quotes
+```
 
-# Extract problematic line
-jsonseek cutline broken.jsonl 5 --save-temp
-# returns temp file path
+**JSONL reports every bad line; JSON reports only the first.** Records in a
+JSONL file are independent, so each one can be checked on its own. A single JSON
+document cannot be: once the structure is wrong, everything after it is
+unreadable, so the first error is all there is to report.
 
-# Fix the temp file, then replace back
+```bash
+jsonseek shape broken.json
+```
+```
+Error: Invalid JSON at line 4 in broken.json
+  Line 4:   "c": 3
+  Expecting ',' delimiter
+```
+
+An empty file is not an error: `shape` prints `(root)`.
+
+Fix one JSONL record in place by passing the replacement directly:
+
+```bash
+jsonseek replaceline broken.jsonl 2 '{"id": 2, "name": "fixed"}'
+# Replaced line 2
+jsonseek shape broken.jsonl        # confirm; any remaining bad lines are listed
+```
+
+Use the temp-file route only when the replacement is long or awkward to quote:
+
+```bash
+jsonseek cutline broken.jsonl 5 --save-temp   # prints a temp file path
+# edit that file, then:
 jsonseek replaceline broken.jsonl 5 --from-file /path/to/fixed.jsonline
 ```
 

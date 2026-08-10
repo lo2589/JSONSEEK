@@ -9,8 +9,54 @@
 
 **JSON/JSONL 解析工具包，专为 LLM 设计。**
 
+## 💸 别再为你不读的 token 买单
+
+把整个 JSON 文件喂进 LLM 上下文窗口是很贵的。一个 10 MB 的 JSON 约等于 **250 万 token** —— 用 Claude Opus 跑一个任务就要 **~$15**。
+
+`jsonseek` 给你的是手术刀级别的命令，让你只为真正需要的数据付钱：
+
+```bash
+jsonseek shape file.json       # 看骨架，约 50 tokens
+jsonseek fields file.json      # 字段+类型，约 200 tokens
+jsonseek query file.json 'X'   # 搜索内容，约 100 tokens
+jsonseek get file.json path    # 取一个值，约 50 tokens
+```
+
+**10 MB → 5 KB。** 同等答案，**便宜 1000 倍**。
+
 > 当 LLM 触碰 JSON，应该先 `shape`，再 `query`，绝不要 `cat` 整个文件。
 > 当人触碰 JSON，规则也一样——只是把 context window 换成键盘而已。
+
+---
+
+## 🐛 精确告诉你哪一行坏了
+
+文件出问题的时候，`jsonseek` 会报告**具体行号 + 解析器的报错原文**——LLM（或你）一眼就能修：
+
+```
+$ jsonseek shape broken.jsonl
+Error: Found 2 invalid lines in broken.jsonl:
+  Line 2: {"id": 2, "name": "unterminated
+    Error: Unterminated string starting at
+  Line 4: {"id": 4,,}
+    Error: Expecting property name enclosed in double quotes
+```
+
+```
+$ jsonseek shape broken.json
+Error: Invalid JSON at line 4 in broken.json
+  Line 4:   "c": 3
+  Expecting ',' delimiter
+```
+
+**JSONL 报告每一行错误；JSON 只报第一个错。** JSONL 每行独立，能逐行查；JSON 是单一文档，一旦坏了只能报第一个错误。
+
+然后原位修复：
+
+```bash
+jsonseek replaceline broken.jsonl 2 '{"id": 2, "name": "fixed"}'
+jsonseek replaceline broken.jsonl 4 '{"id": 4, "name": "fixed"}'
+```
 
 ---
 

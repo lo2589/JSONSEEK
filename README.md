@@ -250,6 +250,98 @@ CLI write commands print a patch preview on success and `Error: ...` on failure.
 
 ---
 
+## 🐛 Bug diagnostics: locate, then fix (NEVER `cat` a JSON file)
+
+`jsonseek` is built for the **"find the bad record, fix it, move on"** workflow. When an LLM (or a human) sees a parse error, the wrong shape, a missing field, or a broken value — the right move is **NOT** to dump the whole file. Use the diagnostic ladder:
+
+### The diagnostic ladder (use in this order)
+
+| Step | Command | What it tells you | When to use it |
+|------|---------|-------------------|----------------|
+| 1 | `jsonseek shape file.json` | High-level skeleton — array? object? nested? | You have no idea what's in the file |
+| 2 | `jsonseek fields file.json` | Every key, every type, occurrence count | You suspect a field is wrong or missing |
+| 3 | `jsonseek fields file.json 'keyword'` | Fields whose **path** matches the keyword | You know roughly where to look |
+| 4 | `jsonseek query file.json 'pattern'` | Records/values whose **content** matches | You're hunting a specific value |
+| 5 | `jsonseek get file.json 'path'` | The exact value at a path | You know the path, want the value |
+| 6 | `jsonseek ls file.json 'path'` | Children of a path (object keys / array indices) | You have a path, want to drill in |
+
+### Workflow A — "JSON won't parse, where's the broken record?"
+
+For **JSONL** files (one record per line), the fastest way is usually:
+
+```bash
+# Find the offending line with a Python one-liner
+python3 -c "
+import json
+for i, line in enumerate(open('broken.jsonl'), 1):
+    try: json.loads(line)
+    except Exception as e: print(f'line {i}: {e} — {line[:80]!r}')
+"
+
+# Then fix it
+jsonseek replace_line broken.jsonl <line_number> '{"id": ..., "fixed": true}'
+```
+
+For **JSON** files (single document), `shape` will fail with a parser error pointing at the byte offset:
+
+```bash
+$ jsonseek shape broken.json
+Error: <tool name>: Expecting value at line 42 column 7 (char 1823)
+# That `char 1823` is your offset — open the file at byte 1823 to inspect.
+```
+
+### Workflow B — "wrong field, wrong type, where?"
+
+```bash
+# Step 1: see the skeleton
+jsonseek shape data.json
+
+# Step 2: list all fields + types + occurrence counts
+jsonseek fields data.json
+#   id        : int    (100%)
+#   name      : str    (100%)
+#   email     : str    (87%)     <-- only 87%! 13% missing
+#   tags      : array  (60%)
+#   score     : float  (40%)     <-- type inconsistent? check
+```
+
+```bash
+# Step 3: drill into the suspicious field
+jsonseek query data.json 'email == null'
+jsonseek get data.json '$.records[5].email'
+```
+
+```bash
+# Step 4: fix the smallest possible patch
+jsonseek set data.json '$.records[5].email' '"fixed@example.com"' --backup
+```
+
+### Workflow C — "I see the bug, just fix one line"
+
+For JSONL with one record per line:
+
+```bash
+# Re-read the bad line first (avoid guessing)
+jsonseek get broken.jsonl <line_number>
+
+# Replace it
+jsonseek replace_line broken.jsonl <line_number> '{"id": 42, "name": "corrected"}'
+```
+
+### Why this matters
+
+- **Never `cat` the whole file.** A 10 MB JSON is 2.5M tokens — your context window is gone.
+- **Always `shape` first.** You can't fix what you can't see.
+- **Always `query` or `get` before `set`.** Confirm the location, then patch.
+- **Use `--backup` on every write.** Default is to write a `.bak` next to the file.
+
+### The diagnostic rule (memorize this)
+
+> **Shape → Fields → Query → Get → Fix.**
+> Skip a step only if you already know the answer.
+
+---
+
 ## Complete command reference
 
 Every command's full signature, every flag, and every output format. For the most up-to-date list, run `jsonseek <command> --help`.

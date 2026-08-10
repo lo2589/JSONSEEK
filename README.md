@@ -9,8 +9,56 @@
 
 **JSON/JSONL parsing toolkit, designed for LLMs.**
 
+## 💸 Stop paying for tokens you don't read
+
+Loading a JSON file into an LLM context window is expensive. A 10 MB JSON is roughly **2.5M tokens** — on Claude Opus that's **~$15 per task** for one file.
+
+`jsonseek` gives you surgical commands so you pay only for what you actually need:
+
+```bash
+jsonseek shape file.json       # skeleton, ~50 tokens
+jsonseek fields file.json      # keys + types, ~200 tokens
+jsonseek query file.json 'X'   # search content, ~100 tokens
+jsonseek get file.json path    # fetch one value, ~50 tokens
+```
+
+**10 MB → 5 KB.** Same answer, 1000× cheaper.
+
 > When LLMs touch JSON, they should `shape` first, `query` second, never `cat` the whole file.
-> When a human touches JSON, the same rules apply — just with a keyboard instead of a context window.
+> When humans touch JSON, the same rules apply — just with a keyboard instead of a context window.
+
+---
+
+## 🐛 Tells you exactly which line is broken
+
+When something's wrong, `jsonseek` reports the **exact line and the parser's own message** — so the LLM (or you) can fix it in one shot instead of guessing:
+
+```
+$ jsonseek shape broken.jsonl
+Error: Found 2 invalid lines in broken.jsonl:
+  Line 2: {"id": 2, "name": "unterminated
+    Error: Unterminated string starting at
+  Line 4: {"id": 4,,}
+    Error: Expecting property name enclosed in double quotes
+```
+
+```
+$ jsonseek shape broken.json
+Error: Invalid JSON at line 4 in broken.json
+  Line 4:   "c": 3
+  Expecting ',' delimiter
+```
+
+**JSONL reports every bad line. JSON reports only the first.** Each JSONL record is independent; a JSON document is not — once it's broken, only the first error is recoverable.
+
+Then fix in place:
+
+```bash
+jsonseek replaceline broken.jsonl 2 '{"id": 2, "name": "fixed"}'
+jsonseek replaceline broken.jsonl 4 '{"id": 4, "name": "fixed"}'
+```
+
+---
 
 `jsonseek` is an **LLM-friendly parser and partial editor for large JSON / JSONL files**. The core principle: **never let an LLM `cat` an entire JSON file into context**. Run `shape` for the skeleton, `query` / `get` for precise lookup, then `set` / `add` / `del` / `append` for the smallest possible edit.
 

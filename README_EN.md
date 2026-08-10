@@ -10,6 +10,13 @@
 > When LLMs touch JSON, they should `shape` first, `query` second, never `cat` the whole file.
 > When a human touches JSON, the same rules apply — just with a keyboard instead of a context window.
 
+![jsonseek locating three broken records in a 50,000-line JSONL and repairing one](demo/demo.gif)
+
+> Three records get eaten. `shape` finds all three in one pass; `replaceline`
+> rewrites line 18372 and leaves the other 49,997 byte-for-byte identical.
+> The output above is a real run, not a mock-up.
+
+
 `jsonseek` is an **LLM-friendly parser and partial editor for large JSON / JSONL files**. The core principle: **never let an LLM `cat` an entire JSON file into context**. Run `shape` for the skeleton, `query` / `get` for precise lookup, then `set` / `add` / `del` / `append` for the smallest possible edit.
 
 Supports **structural understanding, field summaries, partial queries, partial edits, bug localization and repair** — for both JSON and JSONL with one command set.

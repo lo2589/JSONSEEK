@@ -31,3 +31,16 @@ v.txt
 
 # Local todo
 todo.json
+
+# Demo: the animation source and its rendered output ship; the 3.4 MB
+# fixture and the working screenshots do not.
+demo/*
+!demo/bug.html
+!demo/record.py
+!demo/demo.gif
+!demo/demo.mp4
+
+# CodeDendrite index output
+.code_genome_db.json
+.code_hash_db.json
+.codedendrite/

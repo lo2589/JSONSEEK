@@ -27,6 +27,12 @@ jsonseek get file.json path    # 取一个值，约 50 tokens
 > 当 LLM 触碰 JSON，应该先 `shape`，再 `query`，绝不要 `cat` 整个文件。
 > 当人触碰 JSON，规则也一样——只是把 context window 换成键盘而已。
 
+![jsonseek 在 50,000 行的 JSONL 里定位三处损坏，只修其中一条](demo/demo.gif)
+
+> 三条记录被咬坏。`shape` 一次全部找出来，`replaceline` 只改第 18372 行，其余
+> 49,997 行逐字未变。上面的输出是真跑出来的，不是排版出来的。
+
+
 ---
 
 ## 🐛 精确告诉你哪一行坏了

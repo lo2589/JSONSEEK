@@ -5,114 +5,106 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
-**JSON/JSONL 解析工具包，专为 LLM 设计。**
+[English](./README.md) | [中文](./README_ZH.md)
+
+**JSON/JSONL parsing toolkit, designed for LLMs.**
 
 > When LLMs touch JSON, they should `shape` first, `query` second, never `cat` the whole file.
 > When a human touches JSON, the same rules apply — just with a keyboard instead of a context window.
 
-`jsonseek` 是一个针对 **大 JSON / JSONL** 文件做的 **LLM-friendly 解析与局部修改工具**。核心目标：**不要让 LLM `cat` 整个 JSON 进上下文**。先 `shape` 看骨架，再 `query` / `get` 精准定位，最后 `set` / `add` / `del` / `append` 做最小化修改。
+`jsonseek` is an **LLM-friendly parser and partial editor for large JSON / JSONL files**. The core principle: **never let an LLM `cat` an entire JSON file into context**. Run `shape` for the skeleton, `query` / `get` for precise lookup, then `set` / `add` / `del` / `append` for the smallest possible edit.
 
-支持 **结构理解、字段简表、局部查询、局部修改、Bug 定位与修复** —— JSON 和 JSONL 同一套命令。
+Supports **structural understanding, field summaries, partial queries, partial edits, bug localization and repair** — for both JSON and JSONL with one command set.
 
 ---
 
-## 🤖 给 LLM Coding Agent 的 Skills（Claude / Kimi / Cursor / Codex 等）
+## 🤖 Skills for LLM Coding Agents (Claude / Kimi / Cursor / Codex, etc.)
 
-> **直接告诉 agent "用 jsonseek" 即可。** Skills 文档就摆在下面，按需查阅。
+> **Tell your agent "use jsonseek" and it just works.** Skills live below — read on demand.
 
-| Skills | 链接 | 适用 |
+| Skill | Link | Use |
 |---|---|---|
-| **SKILL.md** | 👉 [在 GitHub 上查看](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/SKILL.md) | Agent 启动加载：触发场景、核心命令速查、**写操作三铁律**、Windows API 兜底 |
-| **commands.md** | 👉 [在 GitHub 上查看](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/references/commands.md) | 按需查阅：每个命令的 flag / 示例 / 输出格式 |
-| **path-syntax.md** | 👉 [在 GitHub 上查看](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/references/path-syntax.md) | 按需查阅：路径语法全集（点号 / 方括号 / 混合 / 数组 / 转义） |
+| **SKILL.md** | 👉 [View on GitHub](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/SKILL.md) | Agent startup: triggers, command cheatsheet, **the three iron rules for writes**, Windows API fallback |
+| **commands.md** | 👉 [View on GitHub](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/references/commands.md) | On demand: every flag / example / output format |
+| **path-syntax.md** | 👉 [View on GitHub](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/references/path-syntax.md) | On demand: full path syntax (dot / bracket / mixed / array / escape) |
 
-**Skills 在 GitHub 上的位置**：[`lo2589/jsonseek/skills/jsonseek/`](https://github.com/lo2589/JSONSEEK/tree/main/skills/jsonseek)
+**Skills on GitHub**: [`lo2589/jsonseek/skills/jsonseek/`](https://github.com/lo2589/JSONSEEK/tree/main/skills/jsonseek)
 
-**接入 agent**（Claude Code / Cursor / Codex 等）：
+**Plug into an agent** (Claude Code / Cursor / Codex / etc.):
 
 ```bash
 git clone https://github.com/lo2589/JSONSEEK.git
 ln -s ../jsonseek/skills/jsonseek/SKILL.md ~/.claude/skills/jsonseek.md
-# 或 ~/.cursor/skills/  ~/.codex/skills/
-```
-
-或 pip 安装后从 site-packages 里：
-
-```
-<site-packages>/jsonseek-<current_version>.data/data/skills/jsonseek/
-├── SKILL.md
-└── references/
-    ├── commands.md
-    └── path-syntax.md
+# or ~/.cursor/skills/   ~/.codex/skills/
 ```
 
 ---
 
-## 为什么 JSON 值得专门做一个工具
+## Why JSON Deserves a Dedicated Tool
 
-JSON 是现代数据交换的事实标准。从机器学习实验记录、API 接口配置、应用日志流，到微服务注册表和爬虫数据存储，JSON/JSONL 无处不在：
+JSON is the de facto standard for modern data exchange. From ML experiment logs, API configs, application log streams, to microservice registries and crawler dumps — JSON / JSONL is everywhere:
 
-- **ML 实验追踪**：训练参数、指标曲线、模型配置全存在 JSON 里，一个实验目录轻松堆出几十 MB
-- **API / 微服务配置**：服务发现、路由规则、环境变量往往以 JSON 配置形式管理
-- **日志与事件流**：结构化日志（JSONL）比纯文本更易查询，但文件体积增长极快
-- **数据交换**：前后端通信、服务间 RPC、爬虫落地，JSON 是最常见的数据格式
+- **ML experiment tracking**: training parameters, metric curves, and model configs all live as JSON. A single experiment directory can easily reach tens of MB.
+- **API / microservice configs**: service discovery, routing rules, environment variables — often managed as JSON configs.
+- **Logs & event streams**: structured logs (JSONL) are easier to query than plain text, but file size grows fast.
+- **Data exchange**: frontend-backend communication, inter-service RPC, crawler dumps — JSON is the most common format.
 
-**问题是：JSON 越大，处理它的成本越高**。全量 `cat` 一个 10MB JSON 进 LLM 上下文，等于烧掉几百万 token；人类开发者面对几千行嵌套结构手翻也是折磨。
+**The problem: the bigger the JSON, the more expensive it is to process.** `cat`-ing a 10MB JSON into LLM context burns millions of tokens. Even human developers suffer scanning thousands of nested lines.
 
-`jsonseek` 就是来解决这个问题的——**用局部操作替代全量读取，用结构化查询替代肉眼翻找**。对于需要频繁处理 JSON / JSONL 的 **LLM coding agent 和开发者**，这是一个必备工具。
+**`jsonseek` solves this** — replace full reads with partial operations, replace manual scanning with structured queries. For **LLM coding agents and developers** handling JSON / JSONL frequently, this is essential tooling.
 
 ---
 
-## 为什么 LLM 应该用 jsonseek
+## Why LLMs Should Use jsonseek
 
-当你（或你正在运行的 Claude / Kimi / Cursor / Codex 等 agent）面对一个 10MB 的 JSON 时，全量 `cat` 进上下文是 **灾难性的 token 浪费**。`jsonseek` 让 agent 可以：
+When you (or your running Claude / Kimi / Cursor / Codex agent) face a 10MB JSON, full `cat` into context is **catastrophic token waste**. `jsonseek` lets the agent:
 
-1. **先理解结构** —— `shape` 看骨架、`fields` 看字段表，**不读内容**
-2. **再定位目标** —— `query` 搜关键词、`ls` 看某层子节点、`get` 取指定值
-3. **最后局部修改** —— `set` / `add` / `del` / `append` 只动需要动的地方
+1. **Understand structure first** — `shape` for the skeleton, `fields` for the field list, **without reading content**
+2. **Locate targets next** — `query` to search keywords, `ls` to browse a layer, `get` for a precise value
+3. **Edit partially last** — `set` / `add` / `del` / `append` only where needed
 
-### Token 节省估算
+### Token savings estimate
 
-| 文件大小 | 操作 | 全量读取 | jsonseek 输出 | 节省 |
+| File size | Operation | Full read | `jsonseek` output | Savings |
 |---|---|---|---|---|
 | 100KB config JSON | `shape` | ~25K tokens | ~100 tokens | **99%+** |
 | 100KB config JSON | `fields` | ~25K tokens | ~300 tokens | **98%+** |
-| 100KB config JSON | `get` 单值 | ~25K tokens | ~10 tokens | **99%+** |
-| 100KB config JSON | `query` 命中几条 | ~25K tokens | ~100 tokens | **99%+** |
-| 10MB log JSONL | `shape` 采样 | ~2.5M tokens | ~200 tokens | **99.9%+** |
-| 10MB log JSONL | `query` 命中几十 | ~2.5M tokens | ~1K tokens | **99.9%+** |
+| 100KB config JSON | `get` single value | ~25K tokens | ~10 tokens | **99%+** |
+| 100KB config JSON | `query` hit a few | ~25K tokens | ~100 tokens | **99%+** |
+| 10MB log JSONL | `shape` sampled | ~2.5M tokens | ~200 tokens | **99.9%+** |
+| 10MB log JSONL | `query` hit dozens | ~2.5M tokens | ~1K tokens | **99.9%+** |
 
-> 粗估：1 token ≈ 4 bytes 英文文本。实际比例取决于内容和 tokenizer，但量级是稳定的——**文件越大，省得越多**。
+> Rough estimate: 1 token ≈ 4 bytes of English. Actual ratios vary by content and tokenizer, but the order of magnitude is stable — **the bigger the file, the bigger the savings**.
 
-### 给 LLM 的典型工作流
+### Typical agent workflow
 
 ```bash
-# 1. 看骨架 — 不用读内容
+# 1. Read the skeleton — no content needed
 jsonseek shape data.jsonl
 
-# 2. 看有哪些字段
+# 2. See the field list
 jsonseek fields data.jsonl --top
 
-# 3. 搜关键字段
+# 3. Search a keyword
 jsonseek query data.jsonl password --record-id-field id --max-results 5
 
-# 4. 读具体值
+# 4. Read a specific value
 jsonseek get data.jsonl '[3].password'
 
-# 5. 修改（**永远先 --dry-run**）
+# 5. Modify (**always start with --dry-run**)
 jsonseek set data.jsonl '[3].password' 'newpass' --dry-run
 jsonseek set data.jsonl '[3].password' 'newpass' --backup
 ```
 
 ---
 
-## 安装
+## 📦 Installation
 
 ```bash
 pip install jsonseek
 ```
 
-需要 Python 3.8+。**零依赖、零配置**，装完即用。
+Requires Python 3.8+. **Zero dependencies, zero configuration** — install and run.
 
 ```bash
 $ jsonseek --version
@@ -121,115 +113,114 @@ jsonseek <current_version>
 
 ---
 
-## 命令一览
+## Command reference
 
-### 读 / 检视（只读，安全）
+### Read / inspect (safe, read-only)
 
-| 命令 | 用途 |
+| Command | Purpose |
 |---|---|
-| `shape FILE` | 显示文件结构（树形） |
-| `fields FILE [keyword]` | 列出所有字段及类型 |
-| `ls FILE [path]` | 列出某层子节点 |
-| `get FILE path` | 取某个路径的值 |
-| `query FILE keyword` | 搜索 key / value |
-| `extract PATTERN path` | 批量从多个文件取同一个路径 |
-| `concat PATTERN` | 合并多个 JSON 文件为 JSONL |
+| `shape FILE` | Display structure / skeleton tree |
+| `fields FILE [keyword]` | List all fields and types |
+| `ls FILE [path]` | List children at a path |
+| `get FILE path` | Get a value at a path |
+| `query FILE keyword` | Search keys or values |
+| `extract PATTERN path` | Batch-extract the same path from many JSON files |
+| `concat PATTERN` | Merge multiple JSON files into JSONL |
 
-### 改 / 局部操作（写入）
+### Write / partial edits (modifies files)
 
-| 命令 | 用途 |
+| Command | Purpose |
 |---|---|
-| `set FILE path value` | 修改字段 |
-| `add FILE path value` | 添加新字段 |
-| `del FILE path` | 删除字段 / 数组项 |
-| `append FILE path value` | 向数组追加一项 |
-| `extend FILE path json_array` | 用一个 JSON 数组扩展目标数组 |
-| `cutline FILE N` | 提取 JSONL 第 N 行到临时文件 |
-| `replaceline FILE N` | 替换 JSONL 第 N 行 |
+| `set FILE path value` | Modify a field |
+| `add FILE path value` | Add a new key |
+| `del FILE path` | Delete a key or array element |
+| `append FILE path value` | Append one item to an array |
+| `extend FILE path json_array` | Extend an array from a JSON array |
+| `cutline FILE N` | Extract a specific JSONL line to a temp file |
+| `replaceline FILE N` | Replace a specific JSONL line |
 
-### 通用选项
+### Common flags
 
-| 选项 | 用途 |
+| Flag | Purpose |
 |---|---|
-| `--output json` | 输出机器可读 JSON（管道 / agent 调用必加） |
-| `--backup` | 写操作前生成 `.bak` 备份 |
-| `--dry-run` | **写操作前永远先加这个预览** |
-| `--kind {json,jsonl}` | 强制文件类型（自动检测失败时） |
-| `--encoding ENCODING` | 强制编码（自动检测失败时，例如 gbk） |
-| `--context N` | JSONL 预览行数（默认 2） |
+| `--output json` | Machine-readable output (required when piping to another tool / agent) |
+| `--backup` | Create a `.bak` backup before any write |
+| `--dry-run` | **Always use this before any write to preview** |
+| `--kind {json,jsonl}` | Force file type (auto-detected by default) |
+| `--encoding ENCODING` | Force encoding (auto-detected by default; e.g. `gbk`) |
+| `--context N` | Lines of context around the target (JSONL only, default `2`) |
 
-### 路径语法
+### Path syntax
 
-| 写法 | 例子 | 含义 |
+| Style | Example | Meaning |
 |---|---|---|
-| 点号 | `a.b.c` | `a -> b -> c` |
-| 方括号 | `a[key1][key2]` | `a -> key1 -> key2` |
-| 混合 | `a[key1].b[0]` | `a -> key1 -> b -> 0` |
-| 数组下标 | `items[0][1]` | `items -> 0 -> 1` |
+| Dot | `a.b.c` | `a -> b -> c` |
+| Bracket | `a[key1][key2]` | `a -> key1 -> key2` |
+| Mixed | `a[key1].b[0]` | `a -> key1 -> b -> 0` |
+| Array index | `items[0][1]` | `items -> 0 -> 1` |
 
-> **⚠️ zsh 用户**：路径里有 `[N]` 必须用单引号（或者 `noglob`），zsh 会尝试把方括号当 glob 展开：
+> **⚠️ zsh users**: paths containing `[N]` must be wrapped in single quotes (or use `noglob`), because zsh tries to glob-expand brackets:
 > ```bash
-> # ❌ zsh 会报 "no matches found"
+> # ❌ zsh: "no matches found"
 > jsonseek del file.json services[0].deprecated
 >
-> # ✅ 以下任意一种都行
+> # ✅ either of these works
 > jsonseek del file.json 'services[0].deprecated'
 > noglob jsonseek del file.json services[0].deprecated
 > ```
-> bash / fish / 加引号的 zsh 都正常。
+> bash / fish / zsh-with-quotes all work fine.
 
 ---
 
-## 三条铁律（给 LLM 也给人类）
+## The three iron rules (for LLMs and humans)
 
-1. **改之前，永远先 `--dry-run`**：
+1. **Before any write, always `--dry-run` first**:
    ```bash
    jsonseek set file.json path value --dry-run
    # [DRY-RUN] Before: path = old
    # [DRY-RUN] After:  path = new
    ```
-2. **写之前，永远加 `--backup`**：
+2. **Before any write, always add `--backup`**:
    ```bash
    jsonseek set file.json path value --backup
-   # → 生成 file.json.bak
+   # → creates file.json.bak
    ```
-3. **管道到另一个工具，永远加 `--output json`**：
+3. **When piping to another tool, always add `--output json`**:
    ```bash
    jsonseek query file.json keyword --output json | jq '.hits[0]'
    ```
 
 ---
 
-## 为 AI / Coding Agent 设计
+## Designed for AI / Coding Agents
 
-`jsonseek` 的设计哲学是 **LLM 的 token 预算**：
+`jsonseek`'s design philosophy is **the LLM's token budget**:
 
-- **输出尽可能短**：默认输出筛过的关键信息，不打印无用结构
-- **输出格式稳定**：所有命令都支持 `--output json`，agent 能直接解析
-- **写操作可预览**：所有 `set` / `add` / `del` 都有 `--dry-run`，agent 在工具调用前能先看 diff
-- **干运行**：`jsonseek shape` 在 10MB JSONL 上**只读前 100 行**就停（`--sample-size` 可调），token 用量恒定
+- **Output as short as possible**: by default only the filtered essentials, never the whole structure
+- **Stable output format**: every command supports `--output json`, agents parse directly
+- **Writes are previewable**: every `set` / `add` / `del` has `--dry-run`, agents preview the diff before invoking
+- **Streaming**: `jsonseek shape` on a 10MB JSONL only reads the first 100 lines (`--sample-size` adjustable), token usage is bounded
 
-典型 agent 工作流：
+Typical agent workflow:
 
 ```text
-读取 → shape / fields / ls / query / get
-       ↓ （了解结构）
-定位 → query / get
-       ↓ （找到目标）
-修改 → set / add / del / append   （先 --dry-run 预览 → 再加 --backup 真改）
-       ↓ （验证）
-读取 → query / get
+read  → shape / fields / ls / query / get
+        ↓ (understand structure)
+locate → query / get
+        ↓ (find target)
+write  → set / add / del / append   (--dry-run first → --backup for real)
+        ↓ (verify)
+read   → query / get
 ```
 
 ---
 
-## 跨平台
+## Cross-platform
 
-- **macOS / Linux**：原生命令行工作
-- **Windows PowerShell**：**读命令**（`shape` / `fields` / `get` / `query` / `ls` / `extract` / `concat`）走 CLI 完全可用
-- **Windows 写命令**：因为 PowerShell 会剥离双引号，复杂值会失败——**用 Python API 代替**
+- **macOS / Linux**: native CLI works flawlessly
+- **Windows PowerShell**: **read commands** (`shape` / `fields` / `get` / `query` / `ls` / `extract` / `concat`) work fine via CLI. **Write commands** strip double quotes through PowerShell, so complex values fail — **use the Python API instead**
 
-Windows 写操作的 Python API：
+Windows write Python API:
 
 ```python
 import sys
@@ -242,7 +233,7 @@ from jsonseek.commands.extend_cmd import extend_value
 from jsonseek.commands.del_cmd import del_value
 from jsonseek.commands.replaceline_cmd import replace_line
 
-# Set/Add/Append/Extend 复杂值 — 不受 shell quoting 影响
+# Set/Add/Append/Extend complex values — no shell quoting issues
 set_value('file.json', 'path', {"key": "value"})
 add_value('file.json', 'path', ["item1", "item2"])
 append_value('file.json', 'items', {"id": 1})
@@ -251,203 +242,215 @@ extend_value('file.json', 'items', [{"id": 2}, {"id": 3}])
 # Delete
 del_value('file.json', 'path')
 
-# JSONL 替换整行
+# JSONL whole-line replacement
 replace_line('file.jsonl', 5, '{"id": 5, "name": "fixed"}')
 ```
 
-CLI 写命令成功时打印 patch 预览，失败时打印 `Error: ...`。Python API 写助手成功时静默，失败时抛异常。
+CLI write commands print a patch preview on success and `Error: ...` on failure. Python API write helpers are silent on success and raise on failure.
 
 ---
 
-## 完整命令参考
+## Complete command reference
 
-每个命令的完整签名、所有 flag、所有输出格式。**最新最全的列表**直接跑 `jsonseek <command> --help`。
+Every command's full signature, every flag, and every output format. For the most up-to-date list, run `jsonseek <command> --help`.
 
-### 只读命令
+### Read-only commands
 
 #### `shape FILE`
 
-显示结构 / 骨架树。
+Show structure / skeleton tree.
 
 ```
---kind {json,jsonl}        强制文件类型（默认自动检测）
---output {pretty,json}     输出格式（默认 pretty）
---encoding ENCODING        强制编码（默认自动检测）
---max-depth N              限制遍历深度（默认不限制）
---array-mode {sample,full} JSONL 数组遍历方式，`sample` 默认，`full` 走全部
---sample-size N            JSONL 采样行数（默认 100）
+--kind {json,jsonl}        Force file kind (auto-detected by default)
+--output {pretty,json}     Output format (default: pretty)
+--encoding ENCODING        Force encoding (auto-detected by default)
+--max-depth N              Limit traversal depth (default: unlimited)
+--array-mode {sample,full} JSONL array mode; `sample` is default, `full` walks every element
+--sample-size N            JSONL: number of records to sample (default: 100)
 ```
 
 #### `fields FILE [keyword]`
 
-列出所有字段及类型 / 出现次数。
+List all fields with type / occurrence count.
 
 ```
---top                      只显示顶层字段
---kind / --output / --encoding    (同上)
+--top                      Show only top-level fields
+--kind / --output / --encoding    (same as above)
 ```
 
 #### `ls FILE [path]`
 
-列出某路径下的子节点。JSONL：路径必须以 `[N]` 或 `records[N]` 开头。
+List children at a path. JSONL: path must start with `[N]` or `records[N]`.
 
 ```
---kind / --output / --encoding    (同上)
+--kind / --output / --encoding    (same as above)
 ```
 
 #### `get FILE path`
 
-读某路径下的值。`--output` 控制输出格式。
+Read a value at a path. Output respects `--output`.
 
 ```
---kind / --output / --encoding    (同上)
+--kind / --output / --encoding    (same as above)
 ```
 
 #### `query FILE term`
 
-搜索 key 或 value。
+Search keys or values.
 
 ```
---case-sensitive           大小写敏感（默认不敏感）
---exact                    完全匹配（默认子串匹配）
---match-mode {key,value,both}    匹配目标（默认 both）
---max-results N            限制结果数
---record-id-field FIELD    JSONL：用 FIELD 当 record ID
---preview-field FIELD      JSONL：额外显示 FIELD 作为预览
---kind / --output / --encoding / --context N    (同上)
+--case-sensitive           Case-sensitive matching (default: insensitive)
+--exact                    Exact match (default: substring)
+--match-mode {key,value,both}    What to match (default: both)
+--max-results N            Limit number of results
+--record-id-field FIELD    JSONL: use FIELD as record ID in output
+--preview-field FIELD      JSONL: also show FIELD as preview
+--kind / --output / --encoding / --context N    (same as above)
 ```
 
 #### `extract PATTERN path`
 
-从 glob 匹配到的多个 JSON 文件批量取同一个路径。
+Batch-extract the same path from many JSON files matched by a glob pattern.
 
 ```
---include-missing          路径不存在的文件也包含进来（默认跳过）
---output {pretty,json}     输出格式（默认 pretty）
+--include-missing          Include files where the path does not exist (default: skip)
+--output {pretty,json}     Output format (default: pretty)
 ```
 
 #### `concat PATTERN`
 
-把多个 JSON 文件合并成一个 JSONL。
+Concatenate multiple JSON files into a single JSONL.
 
 ```
--o, --output-file FILE     输出文件（默认 stdout）
---no-sort                  保留 glob 顺序（默认按文件名排序）
+-o, --output-file FILE     Output file (default: stdout)
+--no-sort                  Preserve glob order (default: sort by filename)
 ```
 
-### 写命令（**永远先 `--backup`**）
+### Write commands (always `--backup` first)
 
 #### `set FILE path value`
 
-修改某路径下的现有值。
+Modify an existing value at a path.
 
 ```
---create-missing           自动创建中间路径（默认不存在就报错）
---from-file FILE           从文件读新值（避免 shell quoting 问题）
---backup                   写之前生成 FILE.bak
---dry-run                  只预览，不真写
+--create-missing           Auto-create intermediate paths (default: error if missing)
+--from-file FILE           Read the new value from a file (avoids shell quoting issues)
+--backup                   Create FILE.bak before writing
+--dry-run                  Preview only, no changes
 ```
 
 #### `add FILE path value`
 
-往 object 加新 key。**key 已存在会报错**。
+Add a new key to an object. **Errors if the key already exists.**
 
 ```
---create-missing           自动创建中间路径
---from-file FILE           从文件读值
---backup / --dry-run       (同上)
+--create-missing           Auto-create intermediate paths
+--from-file FILE           Read the value from a file
+--backup / --dry-run       Same as above
 ```
 
 #### `del FILE path`
 
-删一个 key 或数组元素。
+Delete a key or an array element.
 
 ```
--y, --yes                  跳过确认
---backup / --dry-run       (同上)
+-y, --yes                  Skip the confirmation prompt
+--backup / --dry-run       Same as above
 ```
 
 #### `append FILE path value`
 
-**JSON**：往数组追加一项，路径要指向数组。
-**JSONL**：在根追加一条 record（不需要 path）。
+**JSON**: append one item to an array. Path must end at an array.
+**JSONL**: append a record at root level (no path needed).
 
 ```
---from-file FILE           从文件读值
---backup / --dry-run       (同上)
+--from-file FILE           Read the value from a file
+--backup / --dry-run       Same as above
 ```
 
 #### `extend FILE path json_array`
 
-往数组扩展所有元素（**自动展开** JSON 数组里的每个 item）。
+Extend an array with all items from a JSON array (unpacked).
 
 ```
---from-file FILE           从文件读数组
---backup / --dry-run       (同上)
+--from-file FILE           Read the array from a file
+--backup / --dry-run       Same as above
 ```
 
 #### `cutline FILE LINE`
 
-提取指定 JSONL 行（1-indexed）到临时文件。用来修复坏行。
+Extract a specific JSONL line (1-indexed) to a temp file. Used to repair corrupt lines.
 
 ```
---save-temp                保存到临时文件并打印路径；否则打印到 stdout
+--save-temp                Save to a temp file and print the path; otherwise print to stdout
 ```
 
 #### `replaceline FILE LINE [CONTENT]`
 
-替换指定 JSONL 行。用 `--from-file` 避免 quoting 问题。
+Replace a specific JSONL line. Use `--from-file` to avoid quoting issues.
 
 ```
---from-file FILE           从文件读替换内容
+--from-file FILE           Read the replacement content from a file
 ```
 
-### 通用 flag（所有命令都有）
+### Universal flags (every command)
 
 ```
---kind {json,jsonl}        强制文件类型（默认自动检测）
---output {pretty,json}     pretty 默认人类可读；json 给 agent / 管道用
---encoding ENCODING        强制编码（默认自动检测，如 gbk / utf-8）
---backup                   写之前生成 FILE.bak
---dry-run                  预览，不真写
---context N                JSONL：目标行周围显示多少行（默认 2）
+--kind {json,jsonl}        Force file kind (auto-detected by default)
+--output {pretty,json}     pretty (default) is human-readable; json is for agent / pipe consumption
+--encoding ENCODING        Force encoding (auto-detected; e.g. `gbk`, `utf-8`)
+--backup                   Create FILE.bak before any write
+--dry-run                  Preview the change without writing
+--context N                JSONL: lines of context around the target (default: 2)
 ```
 
-> **永远先用 `--dry-run` 试一遍**。再加 `--backup` 真改。
+> **Always use `--dry-run` first.** Then add `--backup` for the real run.
 
-### 退出码
+### Exit codes
 
-| 码 | 含义 |
+| Code | Meaning |
 |---|---|
-| 0 | 成功 |
-| 1 | 通用错误（路径无效、文件不存在、写失败等） |
-| 2 | CLI 参数错 |
+| 0 | Success |
+| 1 | Generic error (invalid path, missing file, write error, etc.) |
+| 2 | Invalid CLI arguments |
 
-### 环境变量
+### Environment variables
 
-| 变量 | 作用 |
+| Var | Effect |
 |---|---|
-| `PYTHONIOENCODING` | 强制 stdout 编码（Windows 中文输出有用） |
+| `PYTHONIOENCODING` | Force stdout encoding (helps with Chinese output on Windows) |
 
 ---
 
-## 命令参考
+## Command reference docs
 
-完整文档见：
-
-| 文档 | 内容 |
+| Doc | Content |
 |---|---|
-| [commands.md](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/references/commands.md) | 每个命令的详细选项、参数、示例 |
-| [path-syntax.md](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/references/path-syntax.md) | 路径语法的所有写法（点号、方括号、混合、数组下标、转义、负数下标等） |
+| [commands.md](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/references/commands.md) | Every command's flags, parameters, examples |
+| [path-syntax.md](https://github.com/lo2589/JSONSEEK/blob/main/skills/jsonseek/references/path-syntax.md) | Full path syntax — dot / bracket / mixed / array indices / negative indices / escapes |
 
-> Skills 链接见 **前面**的 "🤖 给 LLM Coding Agent 的 Skills" 段。
+> Skills links are also given earlier in the "🤖 Skills for LLM Coding Agents" section.
 
 ---
 
-## Links
+## 🔗 Links
 
-| 资源 | 链接 |
+| Resource | Link |
 |---|---|
 | **PyPI** | https://pypi.org/project/jsonseek/ |
 | **GitHub** | https://github.com/lo2589/JSONSEEK |
-| **Issue 追踪** | https://github.com/lo2589/JSONSEEK/issues |
+| **Issues** | https://github.com/lo2589/JSONSEEK/issues |
+
+---
+
+## Other languages
+
+- **English** — [README_EN.md](README_EN.md)
+- **中文** — [README.md](README.md) (default, also serves as the Chinese edition)
+- **中文 (简洁版)** — [README_ZH.md](README_ZH.md)
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

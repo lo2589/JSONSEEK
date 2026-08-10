@@ -5,6 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
+[English](./README.md) | [中文](./README_ZH.md)
+
 **JSON/JSONL 解析工具包，专为 LLM 设计。**
 
 > 当 LLM 触碰 JSON，应该先 `shape`，再 `query`，绝不要 `cat` 整个文件。

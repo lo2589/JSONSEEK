@@ -3,11 +3,44 @@
 [![PyPI version](https://badge.fury.io/py/jsonseek.svg)](https://badge.fury.io/py/jsonseek)
 [![Downloads](https://static.pepy.tech/badge/jsonseek)](https://pepy.tech/project/jsonseek)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/) [![npm jsonseek-dsh](https://img.shields.io/npm/v/jsonseek-dsh)](https://www.npmjs.com/package/jsonseek-dsh)
 
 [English](./README.md) | [中文](./README_ZH.md)
 
 **JSON/JSONL 解析工具包，专为 LLM 设计。**
+
+---
+
+## 🤖 DeepSeek Harness 插件支持
+
+`jsonseek` 自带 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）原生 bundle。装好之后，每个 `jsonseek <子命令>` 都会成为 dsh agent 里一个模型可调用的工具 —— 同时 `jsonseek` 会和 dsh 内置插件一起出现在 **Settings → Plugin list**。
+
+```bash
+# 1. 装 Python CLI（dsh 插件会调用它）
+pip install jsonseek
+
+# 2. 装 dsh bundle 到你平时 `dsh web` 启动的 profile
+dsh plugin --profile web add jsonseek-dsh
+
+# 3. 重启 dsh —— jsonseek-dsh 出现在 Plugin list，
+#    agent 多了 14 个 jsonseek_* 工具可用。
+dsh restart
+```
+
+三步搞定。**不需要改 JSONSEEK 一行代码、不需要 fork** —— npm bundle 是一个独立的数据型包，把每次 `jsonseek_<cmd>({...})` 调用翻译成对应的 `jsonseek` CLI 调用。
+
+装好之后 dsh agent 就能做这种事：
+
+> "用 jsonseek_shape 看下 `data.json` 的结构，再用 jsonseek_query 找所有提到 'password' 的记录。"
+
+模型自己选工具，你的 CLI 负责读文件。
+
+**详细文档：**
+
+- [`npm/QUICKSTART.md`](./npm/QUICKSTART.md) — 30 秒装上 + 验证
+- [`npm/README.md`](./npm/README.md) — 完整用法、发布、故障排查
+
+---
 
 ## 💸 别再为你不读的 token 买单
 

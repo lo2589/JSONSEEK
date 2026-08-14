@@ -3,11 +3,46 @@
 [![PyPI version](https://badge.fury.io/py/jsonseek.svg)](https://badge.fury.io/py/jsonseek)
 [![Downloads](https://static.pepy.tech/badge/jsonseek)](https://pepy.tech/project/jsonseek)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/) [![npm jsonseek-dsh](https://img.shields.io/npm/v/jsonseek-dsh)](https://www.npmjs.com/package/jsonseek-dsh)
 
 [English](./README.md) | [中文](./README_ZH.md)
 
 **JSON/JSONL parsing toolkit, designed for LLMs.**
+
+---
+
+## 🤖 DeepSeek Harness plugin support
+
+`jsonseek` ships as a native [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) bundle. Once installed, every `jsonseek <sub-command>` becomes a model-callable tool inside a dsh agent — and `jsonseek` shows up in **Settings → Plugin list** alongside the dsh built-ins.
+
+```bash
+# 1. Install the Python CLI (the dsh plugin shells out to it)
+pip install jsonseek
+
+# 2. Install the dsh bundle into the profile you boot with `dsh web`
+dsh plugin --profile web add jsonseek-dsh
+
+# 3. Restart dsh — jsonseek-dsh now appears in Plugin list,
+#    and the agent has 14 jsonseek_* tools available.
+dsh restart    # or your usual restart command
+```
+
+That's the whole install. **No source patches to JSONSEEK, no fork** — the npm bundle is a separate data-only package that translates each `jsonseek_<cmd>({...})` call into the corresponding `jsonseek` CLI invocation.
+
+After install the dsh agent can do things like:
+
+> "Use jsonseek_shape to inspect `data.json` and jsonseek_query to find every record mentioning 'password'."
+
+The model picks the right tool, your CLI handles the file.
+
+**Documentation:**
+
+- [`npm/QUICKSTART.md`](./npm/QUICKSTART.md) — 30-second install + verification
+- [`npm/README.md`](./npm/README.md) — full usage, publishing, troubleshooting
+
+---
+
+## 💸 Stop paying for tokens you don't read
 
 ## 💸 Stop paying for tokens you don't read
 
@@ -23,7 +58,6 @@ jsonseek get file.json path    # fetch one value, ~50 tokens
 ```
 
 **10 MB → 5 KB.** Same answer, 1000× cheaper.
-
 > When LLMs touch JSON, they should `shape` first, `query` second, never `cat` the whole file.
 > When humans touch JSON, the same rules apply — just with a keyboard instead of a context window.
 

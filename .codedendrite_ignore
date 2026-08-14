@@ -1,0 +1,14 @@
+[scan_exclude]
+.codedendrite/
+**/.codedendrite/
+__pycache__/
+**/__pycache__/
+*.pyc
+**/*.pyc
+.code_genome_db.json
+.code_hash_db.json
+tmp*.json
+sandbox_test/hook_test_*/
+.git/
+# 自动生成的数据/规则表（机器生成、非导航目标，深度索引会卡死大库，如 sympy rubi）
+**/rubi/rules/

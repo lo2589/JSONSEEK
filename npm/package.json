@@ -1,0 +1,35 @@
+{
+  "name": "jsonseek-dsh",
+  "version": "0.1.6",
+  "description": "DeepSeek Harness bundle: exposes jsonseek as 14 model-callable tools.",
+  "license": "MIT",
+  "keywords": [
+    "jsonseek",
+    "deepseek-harness",
+    "dsh",
+    "cordis",
+    "plugin",
+    "json",
+    "jsonl"
+  ],
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "jsonseek": "*"
+  }
+}

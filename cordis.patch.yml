@@ -1,0 +1,12 @@
+# jsonseek-dsh bundle patch for DeepSeek Harness.
+#
+# Including this package in a profile's `dsh.profile.bundles` list (or
+# installing via `dsh plugin --profile <name> add jsonseek-dsh`) inserts one
+# row that loads the jsonseek_dsh.apply(ctx) Cordis plugin. The plugin
+# registers 14 model-callable tools named `jsonseek_<sub-command>` on the
+# host composition's tool registry, all delegating to the local `jsonseek`
+# CLI binary.
+
+- insert:
+    - id: jsonseek-tools
+      name: jsonseek-dsh

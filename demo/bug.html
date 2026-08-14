@@ -1,0 +1,222 @@
+<style>
+/* Three records in a 50,000-line file are eaten by bugs. One command finds all
+   three; another repairs one and leaves the other 49,997 untouched.
+
+   The file starts valid. Bugs arrive, chew, and the records turn broken — a bug
+   that walks up to already-broken code is decoration, not a cause.
+
+   Terminal text is copied from real runs against events.jsonl, including the
+   truncated "Unterminated string starting at". A demo showing output the binary
+   does not produce fails the first time somebody runs it. */
+
+:root {
+  --ink: #d8dee9; --dim: #6b7688;
+  --bg: #12151c; --panel: #171b24; --line: #232936;
+  --good: #64c98a; --bad: #e0685f;
+  --key: #9dc4ff; --str: #b6d7a8; --num: #e5c07b;
+  --beat: 18s;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0; padding: 20px 0; background: var(--bg); color: var(--ink);
+  font: 12.5px/1.7 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  display: flex; align-items: flex-start; justify-content: center;
+}
+
+.stage { width: 1200px; padding: 16px 22px; }
+.wrap { display: grid; grid-template-columns: 1fr 1.1fr; gap: 16px; align-items: start; }
+
+.head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  color: var(--dim); font-size: 11.5px; margin-bottom: 7px; height: 16px;
+}
+.head b { color: var(--ink); font-weight: 600; }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 13px 15px; white-space: pre; min-height: 330px;
+}
+.panel.file { overflow: hidden; }   /* bugs walk in from offscreen */
+
+.ln { color: #3d4657; display: inline-block; width: 4.4em; text-align: right; margin-right: .9em; user-select: none; }
+.k { color: var(--key); } .s { color: var(--str); } .n { color: var(--num); }
+.gap { color: #3d4657; }
+
+/* ---------- records: two layers, swapped when the bug bites ---------- */
+
+.rec { position: relative; display: inline-block; }
+.rec .ok, .rec .bad { display: inline-block; }
+.rec .ok  { color: var(--good); }
+.rec .bad { position: absolute; left: 0; top: 0; color: var(--bad); }
+
+/* Bitten once at 9%: valid text out, broken text in. Steps, not a fade — a
+   character is either there or it is not. */
+.rec .ok  { animation: okOut  var(--beat) steps(1) infinite; }
+.rec .bad { animation: badIn  var(--beat) steps(1) infinite; }
+@keyframes okOut  { 0%,8%{opacity:1} 9%,100%{opacity:0} }
+@keyframes badIn  { 0%,8%{opacity:0} 9%,100%{opacity:1} }
+
+/* 18372 is bitten at 9% and repaired at 47%, so its valid layer comes back. */
+#fixed .ok  { animation: okBack var(--beat) steps(1) infinite; }
+#fixed .bad { animation: badGone var(--beat) steps(1) infinite; }
+@keyframes okBack  { 0%,8%{opacity:1} 9%,46%{opacity:0} 47%,100%{opacity:1} }
+@keyframes badGone { 0%,8%{opacity:0} 9%,46%{opacity:1} 47%,100%{opacity:0} }
+
+/* ---------- bugs ---------- */
+
+.bug { position: absolute; top: 2px; right: -30px; width: 20px; height: 12px; }
+.bug .body {
+  position: absolute; inset: 0 3px;
+  background: linear-gradient(180deg, #8a63d8, #5b3fa0);
+  border-radius: 52% 44% 44% 52%; box-shadow: inset 0 -2px 3px rgba(0,0,0,.4);
+}
+.bug .body::before {
+  content: ""; position: absolute; inset: 2px 4px 2px 6px;
+  border-left: 1px solid rgba(0,0,0,.3); border-right: 1px solid rgba(0,0,0,.3);
+}
+.bug .ant, .bug .ant::after {
+  position: absolute; width: 5px; height: 4px;
+  border-top: 1.3px solid #b09ae4; border-right: 1.3px solid #b09ae4;
+  border-radius: 0 5px 0 0;
+}
+.bug .ant { top: -3px; left: 13px; animation: feel .45s ease-in-out infinite alternate; }
+.bug .ant::after { content: ""; top: 0; left: 3px; transform: rotate(25deg); }
+@keyframes feel { to { transform: rotate(-16deg); } }
+
+.bug .legs {
+  position: absolute; left: 3px; width: 15px; height: 3px;
+  background: repeating-linear-gradient(90deg, #6f4fb8 0 1.3px, transparent 1.3px 5.5px);
+  animation: scuttle .16s steps(2) infinite;
+}
+.bug .legs.t { top: -3px; } .bug .legs.b { top: 11px; }
+@keyframes scuttle { to { transform: translateX(2px); } }
+
+/* Crawl in, lunge at the record, recoil. The lunge is what the eye reads as
+   the bite, and it lands on the frame where the text flips. */
+#bug1, #bug3 { animation: bite var(--beat) linear infinite; }
+/* In from the empty margin on the right, never across the text: a bug walking
+   over the characters reads as noise, not as an approach. */
+@keyframes bite {
+  0%      { transform: translateX(150px); opacity: 0; }
+  2%      { opacity: 1; }
+  7%      { transform: translateX(0); }
+  9%      { transform: translateX(-8px); }        /* lunge */
+  11%,100%{ transform: translateX(0); }
+}
+
+/* This one leaves when its record is repaired; the other two stay, which says
+   more about scope than a sentence would. */
+#bug2 { animation: bite var(--beat) linear infinite, leave var(--beat) linear infinite; }
+@keyframes leave {
+  0%, 46%   { opacity: 1; }
+  53%, 100% { transform: translateX(200px); opacity: 0; }
+}
+
+/* ---------- terminal ---------- */
+
+/* Typing is a width animation in `ch`, exact in a monospace face: one step per
+   character. Counts must match the strings or the last character is clipped. */
+.cmd { color: var(--ink); margin-top: 9px; }
+.cmd::before { content: "$ "; color: var(--dim); }
+.type { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; width: 0; }
+.cur {
+  display: inline-block; width: .55em; height: 1em; vertical-align: text-bottom;
+  background: var(--ink); animation: blink .9s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+#t1 { animation: t1 var(--beat) steps(27) infinite; }
+#t2 { animation: t2 var(--beat) steps(69) infinite; }
+#t3 { animation: t3 var(--beat) steps(27) infinite; }
+@keyframes t1 { 0%,12%{width:0} 20%,100%{width:27ch} }
+@keyframes t2 { 0%,33%{width:0} 45%,100%{width:69ch} }
+@keyframes t3 { 0%,55%{width:0} 63%,100%{width:27ch} }
+
+/* Output does not fade. It is there or it is not. */
+.out, .blk { opacity: 0; }
+#o1 { animation: o1 var(--beat) steps(1) infinite; }
+#o2 { animation: o2 var(--beat) steps(1) infinite; }
+#o3 { animation: o3 var(--beat) steps(1) infinite; }
+#b2 { animation: b2 var(--beat) steps(1) infinite; }
+#b3 { animation: b3 var(--beat) steps(1) infinite; }
+@keyframes o1 { 0%,21%{opacity:0} 22%,100%{opacity:1} }
+@keyframes b2 { 0%,32%{opacity:0} 33%,100%{opacity:1} }
+@keyframes o2 { 0%,46%{opacity:0} 47%,100%{opacity:1} }
+@keyframes b3 { 0%,54%{opacity:0} 55%,100%{opacity:1} }
+@keyframes o3 { 0%,64%{opacity:0} 65%,100%{opacity:1} }
+
+.err { color: var(--bad); }
+.okl { color: var(--good); }
+.why { color: var(--dim); }
+
+.tag {
+  margin-top: 14px; text-align: center; font-size: 14.5px; color: var(--ink);
+  opacity: 0; animation: tag var(--beat) steps(1) infinite;
+}
+.tag span { color: var(--dim); }
+@keyframes tag { 0%,71%{opacity:0} 72%,100%{opacity:1} }
+
+body.still *, body.still *::before, body.still *::after {
+  animation-play-state: paused !important;
+  animation-delay: calc(var(--beat) * -0.9) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; }
+  .out, .blk, .tag { opacity: 1; }
+  .type { width: auto; }
+  .rec .ok { opacity: 0; } .rec .bad { opacity: 1; }
+  #fixed .ok { opacity: 1; } #fixed .bad { opacity: 0; }
+  #bug2 { display: none; }
+}
+</style>
+
+<div class="stage">
+  <div class="wrap">
+
+    <div>
+      <div class="head"><b>events.jsonl</b><span>50,000 lines · 3.4 MB</span></div>
+      <div class="panel file"><span class="ln">1203</span>{<span class="k">"id"</span>:<span class="n">1203</span>,<span class="k">"name"</span>:<span class="s">"bob"</span>}
+<span class="ln">1204</span><span class="rec"><span class="ok">{"id":1204,"name":"alice","active":true}</span><span class="bad">{"id":1204,"name":"alice" "active":true}</span><span class="bug" id="bug1"><i class="ant"></i><i class="legs t"></i><i class="legs b"></i><i class="body"></i></span></span>
+<span class="ln gap">   ⋮</span>
+<span class="ln">18372</span><span class="rec" id="fixed"><span class="ok">{"id":18372,"role":"admin"}</span><span class="bad">{"id":18372,"role" "admin"}</span><span class="bug" id="bug2"><i class="ant"></i><i class="legs t"></i><i class="legs b"></i><i class="body"></i></span></span>
+<span class="ln gap">   ⋮</span>
+<span class="ln">42108</span><span class="rec"><span class="ok">{"id":42108,"city":"Tokyo"}</span><span class="bad">{"id":42108,"city":"Tok</span><span class="bug" id="bug3"><i class="ant"></i><i class="legs t"></i><i class="legs b"></i><i class="body"></i></span></span>
+<span class="ln gap">   ⋮</span>
+<span class="ln">50000</span>{<span class="k">"id"</span>:<span class="n">50000</span>,<span class="k">"name"</span>:<span class="s">"grace"</span>}</div>
+    </div>
+
+    <div>
+      <div class="head"><span>zsh — jsonseek</span></div>
+      <div class="panel"><div class="cmd"><span class="type" id="t1">jsonseek shape events.jsonl</span><i class="cur"></i></div>
+<div class="out err" id="o1">Error: Found 3 invalid lines in events.jsonl:
+  Line 1204: {"id":1204,"name":"alice" "active":true}
+    Error: Expecting ',' delimiter
+  Line 18372: {"id":18372,"role" "admin"}
+    Error: Expecting ':' delimiter
+  Line 42108: {"id":42108,"city":"Tok
+    Error: Unterminated string starting at</div>
+
+<div class="blk" id="b2"><div class="cmd"><span class="type" id="t2">jsonseek replaceline events.jsonl 18372 '{"id":18372,"role":"admin"}'</span><i class="cur"></i></div>
+<div class="out okl" id="o2">Replaced line 18372</div></div>
+
+<div class="blk" id="b3"><div class="cmd"><span class="type" id="t3">jsonseek shape events.jsonl</span><i class="cur"></i></div>
+<div class="out err" id="o3">Error: Found 2 invalid lines in events.jsonl:
+  Line 1204: {"id":1204,"name":"alice" "active":true}
+    Error: Expecting ',' delimiter
+  Line 42108: {"id":42108,"city":"Tok
+    Error: Unterminated string starting at</div></div></div>
+    </div>
+
+  </div>
+
+  <div class="tag">Inspect globally. <span>Edit locally.</span></div>
+</div>
+
+<script>
+  if (location.search.includes("still")) document.body.classList.add("still");
+  addEventListener("click", () =>
+    document.getAnimations().forEach(a => { a.currentTime = 0; a.play(); }));
+</script>

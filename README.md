@@ -44,8 +44,6 @@ The model picks the right tool, your CLI handles the file.
 
 ## 💸 Stop paying for tokens you don't read
 
-## 💸 Stop paying for tokens you don't read
-
 Loading a JSON file into an LLM context window is expensive. A 10 MB JSON is roughly **2.5M tokens** — on Claude Opus that's **~$15 per task** for one file.
 
 `jsonseek` gives you surgical commands so you pay only for what you actually need:

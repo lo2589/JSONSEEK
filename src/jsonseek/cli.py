@@ -122,6 +122,9 @@ def build_parser() -> argparse.ArgumentParser:
     replaceline_p.add_argument("--encoding", default=None, help="File encoding")
     replaceline_p.add_argument("--from-file", default=None, help="Read content from file")
 
+    # mcp
+    sub.add_parser("mcp", help="Run the stdio MCP server (same as jsonseek-mcp)")
+
     return parser
 
 
@@ -136,6 +139,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 def dispatch_command(args: argparse.Namespace) -> int:
     command = args.command
+    if command == "mcp":
+        from .mcp_server import main as mcp_main
+        return mcp_main()
     handlers = {
         "shape": commands.shape_cmd.handle_shape,
         "fields": commands.fields_cmd.handle_fields,

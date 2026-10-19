@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="jsonseek",
-    version="0.1.6",  # primary source of truth is pyproject.toml; keep aligned
+    version="0.1.7",  # primary source of truth is pyproject.toml; keep aligned
     description="Query and patch JSON/JSONL files from the command line",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
@@ -10,6 +10,7 @@ setup(
     entry_points={
         "console_scripts": [
             "jsonseek=jsonseek.cli:main",
+            "jsonseek-mcp=jsonseek.mcp_server:main",
         ],
     },
 )

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jsonseek"
-version = "0.1.6"
+version = "0.1.7"
 description = "Query and patch JSON/JSONL files from the command line"
 readme = "README_EN.md"
 requires-python = ">=3.8"
@@ -38,6 +38,7 @@ Issues = "https://github.com/lo2589/JSONSEEK/issues"
 
 [project.scripts]
 jsonseek = "jsonseek.cli:main"
+jsonseek-mcp = "jsonseek.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

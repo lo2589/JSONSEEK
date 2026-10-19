@@ -45,6 +45,31 @@ ln -s ../jsonseek/skills/jsonseek/SKILL.md ~/.claude/skills/jsonseek.md
 
 ---
 
+## 🔌 MCP server
+
+<!-- mcp-name: io.github.lo2589/jsonseek -->
+
+jsonseek also runs as a zero-dependency stdio MCP server, so any MCP client (Claude Code, Cursor, Codex, Cline, Claude Desktop) gets the same commands as tools: `shape`, `fields`, `ls`, `get`, `query`, `set`, `add`, `delete`, `append`, `replace_line`, `cut_line`.
+
+```bash
+pip install jsonseek
+claude mcp add jsonseek -- jsonseek-mcp      # Claude Code
+```
+
+Any other client (`.mcp.json` / `mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "jsonseek": { "command": "uvx", "args": ["jsonseek", "mcp"] }
+  }
+}
+```
+
+Write tools accept `dry_run` and `backup`; every tool returns the same JSON the CLI prints with `--output json`.
+
+---
+
 ## Why JSON Deserves a Dedicated Tool
 
 JSON is the de facto standard for modern data exchange. From ML experiment logs, API configs, application log streams, to microservice registries and crawler dumps — JSON / JSONL is everywhere:

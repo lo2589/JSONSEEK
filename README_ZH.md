@@ -119,6 +119,31 @@ ln -s ../jsonseek/skills/jsonseek/SKILL.md ~/.claude/skills/jsonseek.md
 
 ---
 
+## 🔌 MCP server
+
+<!-- mcp-name: io.github.lo2589/jsonseek -->
+
+jsonseek 同时是一个零依赖的 stdio MCP server，任何 MCP 客户端（Claude Code、Cursor、Codex、Cline、Claude Desktop）都能把这些命令当工具用：`shape`、`fields`、`ls`、`get`、`query`、`set`、`add`、`delete`、`append`、`replace_line`、`cut_line`。
+
+```bash
+pip install jsonseek
+claude mcp add jsonseek -- jsonseek-mcp      # Claude Code
+```
+
+其他客户端（`.mcp.json` / `mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "jsonseek": { "command": "uvx", "args": ["jsonseek", "mcp"] }
+  }
+}
+```
+
+写入类工具支持 `dry_run` 和 `backup`；每个工具返回的 JSON 与 CLI 的 `--output json` 相同。
+
+---
+
 ## 📦 安装
 
 ```bash

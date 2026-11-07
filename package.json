@@ -1,0 +1,36 @@
+{
+  "name": "jsonseek-dsh",
+  "version": "0.1.6",
+  "description": "DeepSeek Harness plugin: 14 model-callable JSON/JSONL tools, powered by the jsonseek CLI.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./npm/index.js",
+  "exports": {
+    ".": "./npm/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "npm/index.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "json",
+    "jsonl",
+    "agent-tools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lo2589/JSONSEEK.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

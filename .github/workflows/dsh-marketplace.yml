@@ -30,9 +30,11 @@ jobs:
             const client = p.exports?.['./client'];
             assert(client && fs.existsSync(client), 'Missing web client export');
           }
-          const included = (p.files || []).map(v=>v.replace(/\/$/, ''));
+          const clean = v => v.replace(/^\\.\\//, '').replace(/\\/$/, '');
+          const included = (p.files || []).map(clean);
           for (const f of [entry, patch, p.dsh.client ? p.exports['./client'] : null].filter(Boolean)) {
-            assert(included.some(v => f === v || f.startsWith(v + '/')), 'File excluded from npm pack: ' + f);
+            const normalized = clean(f);
+            assert(included.some(v => normalized === v || normalized.startsWith(v + '/')), 'File excluded from npm pack: ' + f);
           }
           console.log('Bundle metadata and file inclusion OK');
           NODE

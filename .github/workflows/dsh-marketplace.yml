@@ -30,7 +30,7 @@ jobs:
             const client = p.exports?.['./client'];
             assert(client && fs.existsSync(client), 'Missing web client export');
           }
-          const clean = v => v.replace(/^\\.\\//, '').replace(/\\/$/, '');
+          const clean = v => { const s = v.startsWith('./') ? v.slice(2) : v; return s.endsWith('/') ? s.slice(0, -1) : s; };
           const included = (p.files || []).map(clean);
           for (const f of [entry, patch, p.dsh.client ? p.exports['./client'] : null].filter(Boolean)) {
             const normalized = clean(f);

@@ -1,0 +1,42 @@
+name: DSH marketplace package checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify-dsh-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate DSH bundle and packed files
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          import path from 'node:path';
+          const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          assert(p.name && p.dsh?.bundle?.patch, 'Missing DSH bundle metadata');
+          const patch = p.dsh.bundle.patch;
+          assert(fs.existsSync(patch), 'Missing bundle patch: ' + patch);
+          assert(fs.readFileSync(patch, 'utf8').includes('name: ' + p.name), 'Bundle patch must name installed package');
+          const entry = p.main;
+          assert(entry && fs.existsSync(entry), 'Missing host entry: ' + entry);
+          if (p.dsh.client) {
+            const client = p.exports?.['./client'];
+            assert(client && fs.existsSync(client), 'Missing web client export');
+          }
+          const clean = v => { const s = v.startsWith('./') ? v.slice(2) : v; return s.endsWith('/') ? s.slice(0, -1) : s; };
+          const included = (p.files || []).map(clean);
+          for (const f of [entry, patch, p.dsh.client ? p.exports['./client'] : null].filter(Boolean)) {
+            const normalized = clean(f);
+            assert(included.some(v => normalized === v || normalized.startsWith(v + '/')), 'File excluded from npm pack: ' + f);
+          }
+          console.log('Bundle metadata and file inclusion OK');
+          NODE
+      - name: Inspect npm tarball manifest
+        run: npm pack --dry-run --json > /tmp/dsh-pack.json && node --input-type=module -e "import fs from 'node:fs';const a=JSON.parse(fs.readFileSync('/tmp/dsh-pack.json'));if(!a[0]?.files?.length)process.exit(1);console.log(a[0].files.map(f=>f.path).join('\\n'))"
